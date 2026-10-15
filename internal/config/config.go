@@ -22,6 +22,10 @@ type Config struct {
 	// signature on the session cookie.
 	AuthSecret string
 
+	// AllowPrivateFeeds disables the SSRF guard so local test feeds work.
+	// Never enable in production.
+	AllowPrivateFeeds bool
+
 	// Worker
 	WorkerTick time.Duration
 }
@@ -37,6 +41,8 @@ func Load() (Config, error) {
 		APIAddr:     getenv("API_ADDR", ":8080"),
 		CORSOrigins: splitList(getenv("CORS_ORIGINS", "http://localhost:3000")),
 		AuthSecret:  os.Getenv("BETTER_AUTH_SECRET"),
+
+		AllowPrivateFeeds: getenv("ALLOW_PRIVATE_FEEDS", "false") == "true",
 	}
 
 	if err := c.LogLevel.UnmarshalText([]byte(getenv("LOG_LEVEL", "info"))); err != nil {

@@ -14,7 +14,9 @@ import (
 
 	"github.com/codebyaadi/feedoku/internal/auth"
 	"github.com/codebyaadi/feedoku/internal/config"
+	"github.com/codebyaadi/feedoku/internal/feed"
 	"github.com/codebyaadi/feedoku/internal/httpapi"
+	"github.com/codebyaadi/feedoku/internal/ingest"
 	"github.com/codebyaadi/feedoku/internal/logging"
 	"github.com/codebyaadi/feedoku/internal/postgres"
 	"github.com/codebyaadi/feedoku/internal/store"
@@ -43,8 +45,11 @@ func run() error {
 	}
 	defer pool.Close()
 
+	queries := store.New(pool)
 	router := httpapi.NewRouter(httpapi.Deps{
-		Auth:        auth.NewAuthenticator(cfg.AuthSecret, store.New(pool)),
+		Auth:        auth.NewAuthenticator(cfg.AuthSecret, queries),
+		Queries:     queries,
+		Ingest:      ingest.New(queries, feed.NewFetcher(cfg.AllowPrivateFeeds)),
 		DB:          pool,
 		CORSOrigins: cfg.CORSOrigins,
 	})

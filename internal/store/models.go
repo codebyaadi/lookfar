@@ -24,6 +24,38 @@ type Account struct {
 	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
+type Article struct {
+	ID          int64       `json:"id"`
+	FeedID      int64       `json:"feedId"`
+	Guid        string      `json:"guid"`
+	Url         string      `json:"url"`
+	Title       string      `json:"title"`
+	Author      *string     `json:"author"`
+	PublishedAt time.Time   `json:"publishedAt"`
+	Summary     string      `json:"summary"`
+	ContentHtml string      `json:"contentHtml"`
+	ContentText string      `json:"contentText"`
+	ImageUrl    *string     `json:"imageUrl"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	SearchTsv   interface{} `json:"searchTsv"`
+}
+
+type Feed struct {
+	ID            int64      `json:"id"`
+	Url           string     `json:"url"`
+	SiteUrl       *string    `json:"siteUrl"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description"`
+	Favicon       *string    `json:"favicon"`
+	Etag          *string    `json:"etag"`
+	LastModified  *string    `json:"lastModified"`
+	LastFetchedAt *time.Time `json:"lastFetchedAt"`
+	NextFetchAt   time.Time  `json:"nextFetchAt"`
+	ErrorCount    int32      `json:"errorCount"`
+	LastError     *string    `json:"lastError"`
+	CreatedAt     time.Time  `json:"createdAt"`
+}
+
 type Session struct {
 	ID        string    `json:"id"`
 	ExpiresAt time.Time `json:"expiresAt"`
@@ -35,6 +67,14 @@ type Session struct {
 	UserId    string    `json:"userId"`
 }
 
+type Subscription struct {
+	UserID      string    `json:"userId"`
+	FeedID      int64     `json:"feedId"`
+	Folder      *string   `json:"folder"`
+	CustomTitle *string   `json:"customTitle"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
 type User struct {
 	ID            string    `json:"id"`
 	Name          string    `json:"name"`
@@ -43,6 +83,15 @@ type User struct {
 	Image         *string   `json:"image"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+type UserArticle struct {
+	UserID    string     `json:"userId"`
+	ArticleID int64      `json:"articleId"`
+	ReadAt    *time.Time `json:"readAt"`
+	Saved     bool       `json:"saved"`
+	Rating    int16      `json:"rating"`
+	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
 type Verification struct {

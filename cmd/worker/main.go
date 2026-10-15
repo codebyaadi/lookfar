@@ -10,8 +10,11 @@ import (
 	"syscall"
 
 	"github.com/codebyaadi/feedoku/internal/config"
+	"github.com/codebyaadi/feedoku/internal/feed"
+	"github.com/codebyaadi/feedoku/internal/ingest"
 	"github.com/codebyaadi/feedoku/internal/logging"
 	"github.com/codebyaadi/feedoku/internal/postgres"
+	"github.com/codebyaadi/feedoku/internal/store"
 	"github.com/codebyaadi/feedoku/internal/worker"
 )
 
@@ -38,5 +41,5 @@ func run() error {
 	}
 	defer pool.Close()
 
-	return worker.New(pool, cfg.WorkerTick).Run(ctx)
+	return worker.New(pool, ingest.New(store.New(pool), feed.NewFetcher(cfg.AllowPrivateFeeds)), cfg.WorkerTick).Run(ctx)
 }

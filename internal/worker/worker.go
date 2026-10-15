@@ -12,13 +12,23 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
-type Worker struct {
-	db   Pinger
-	tick time.Duration
+const (
+	pollBatch       = 20
+	pollConcurrency = 5
+)
+
+type Poller interface {
+	PollDue(ctx context.Context, batch, concurrency int) (int, error)
 }
 
-func New(db Pinger, tick time.Duration) *Worker {
-	return &Worker{db: db, tick: tick}
+type Worker struct {
+	db     Pinger
+	poller Poller
+	tick   time.Duration
+}
+
+func New(db Pinger, poller Poller, tick time.Duration) *Worker {
+	return &Worker{db: db, poller: poller, tick: tick}
 }
 
 // Run blocks until ctx is cancelled, running one pass per tick.
@@ -45,5 +55,20 @@ func (w *Worker) pass(ctx context.Context) {
 		slog.Error("database unreachable", "err", err)
 		return
 	}
-	slog.Debug("worker pass complete")
+	// Keep draining while there is a backlog of due feeds.
+	for ctx.Err() == nil {
+		n, err := w.poller.PollDue(ctx, pollBatch, pollConcurrency)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.Error("poll feeds", "err", err)
+			}
+			return
+		}
+		if n > 0 {
+			slog.Info("polled feeds", "count", n)
+		}
+		if n < pollBatch {
+			return
+		}
+	}
 }

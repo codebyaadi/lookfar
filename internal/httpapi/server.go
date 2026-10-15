@@ -13,6 +13,8 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/codebyaadi/feedoku/internal/auth"
+	"github.com/codebyaadi/feedoku/internal/ingest"
+	"github.com/codebyaadi/feedoku/internal/store"
 )
 
 type Pinger interface {
@@ -22,6 +24,8 @@ type Pinger interface {
 type Deps struct {
 	Auth        *auth.Authenticator
 	DB          Pinger
+	Queries     *store.Queries
+	Ingest      *ingest.Service
 	CORSOrigins []string
 }
 
@@ -44,6 +48,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(requireUser(d.Auth))
 		r.Get("/me", getMe)
+		(&reader{q: d.Queries, ingest: d.Ingest}).routes(r)
 	})
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
