@@ -1,6 +1,5 @@
 .env
+bin/
 tmp/
-_tmp/
+build-errors.log
 .vscode/
-*.rdb
-feedoku-logs.txt

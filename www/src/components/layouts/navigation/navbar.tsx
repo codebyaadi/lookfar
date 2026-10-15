@@ -18,16 +18,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+const handleSignOut = async () => {
+  await authClient.signOut();
+};
+
 const Navbar = () => {
   const { data: session } = authClient.useSession();
-  console.log('session: ', session);
-
-  const handleSignOut = async () => {
-    await authClient.signOut();
-  };
 
   return (
-    <nav className='font-outfit fixed top-0 z-1 w-full bg-transparent px-0 lg:px-6'>
+    <nav className='fixed top-0 z-1 w-full bg-transparent px-0 lg:px-6'>
       <div className='mx-4 flex items-center justify-between py-2'>
         <Link href='/' className='font-semibold text-amber-300'>
           {siteConfig.name}
@@ -42,7 +41,7 @@ const Navbar = () => {
                   <AvatarFallback>{session.user.name[0]}</AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className='font-outfit w-42 rounded'>
+              <DropdownMenuContent className='w-42 rounded'>
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>

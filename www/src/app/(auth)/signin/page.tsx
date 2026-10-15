@@ -21,23 +21,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/lib/auth-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ReloadIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
 const formSchema = z.object({
-  email: z.string().email({
-    message: 'Invalid email address',
-  }),
+  email: z.email({ message: 'Invalid email address' }),
   password: z.string().min(8, {
-    message: 'Password must be at least 8 character',
+    message: 'Password must be at least 8 characters',
   }),
 });
 
-export default function SignIn() {
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignIn />
+    </Suspense>
+  );
+}
+
+function SignIn() {
+  const router = useRouter();
+  const next = safeNext(useSearchParams().get('next'));
   const [loading, setLoading] = useState(false);
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -48,32 +56,18 @@ export default function SignIn() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      const { data, error } = await authClient.signIn.email(
-        {
-          email: values.email,
-          password: values.password,
-          callbackURL: '/',
-        },
-        {
-          onRequest: (ctx) => {
-            setLoading(true);
-          },
-          onSuccess: (ctx) => {
-            setLoading(false);
-            toast.success('Logged in successfully');
-            console.log(ctx.response);
-          },
-          onError: (ctx) => {
-            setLoading(false);
-            toast.error(ctx.error.message);
-            console.log(ctx.error);
-          },
-        }
-      );
-    } catch (error) {
-      console.error('Error submitting the form:', error);
+    setLoading(true);
+    const { error } = await authClient.signIn.email({
+      email: values.email,
+      password: values.password,
+    });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message ?? 'Sign in failed');
+      return;
     }
+    toast.success('Signed in');
+    router.push(next);
   }
 
   return (
@@ -82,8 +76,7 @@ export default function SignIn() {
         <CardHeader>
           <CardTitle>Sign In</CardTitle>
           <CardDescription>
-            Create an account and discover the worlds' best UI component
-            framework.
+            Welcome back. Pick up where your feeds left off.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -130,13 +123,13 @@ export default function SignIn() {
                 className='mt-4! w-full'
                 disabled={loading}
               >
-                {loading ? 'Logging...' : 'Log In'}
+                {loading ? 'Signing in…' : 'Sign In'}
               </Button>
             </CardContent>
           </form>
         </Form>
         <CardFooter className='text-sm'>
-          Don't have an account ?
+          Don&apos;t have an account?
           <Link href='/signup' className='ml-1 underline'>
             Sign Up
           </Link>
@@ -145,4 +138,9 @@ export default function SignIn() {
       </Card>
     </div>
   );
+}
+
+/** Only allow same-site relative redirects. */
+function safeNext(next: string | null) {
+  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
 }

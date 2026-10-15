@@ -1,0 +1,48 @@
+# Local development infrastructure. The Go services and Next.js app run on the
+# host (see Makefile); `docker compose --profile app up` also runs api + worker.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: feedoku
+      POSTGRES_PASSWORD: feedoku
+      POSTGRES_DB: feedoku
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feedoku -d feedoku"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    profiles: [app]
+    build:
+      context: .
+      target: api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://feedoku:feedoku@postgres:5432/feedoku?sslmode=disable
+      API_ADDR: ":8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    profiles: [app]
+    build:
+      context: .
+      target: worker
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://feedoku:feedoku@postgres:5432/feedoku?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

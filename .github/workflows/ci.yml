@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: feedoku
+          POSTGRES_PASSWORD: feedoku
+          POSTGRES_DB: feedoku
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U feedoku" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgres://feedoku:feedoku@localhost:5432/feedoku?sslmode=disable
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l cmd internal)" || (gofmt -l cmd internal; exit 1)
+      - name: sqlc code is up to date
+        run: make generate && git diff --exit-code internal/store
+      - run: go vet ./cmd/... ./internal/...
+      - run: go test ./cmd/... ./internal/...
+      - name: migrations apply cleanly (up, down, up)
+        run: |
+          go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" up
+          go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" reset
+          go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" up
+      - run: make build
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: www
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run format
+      - run: bun run typecheck
+      - run: bun run build
+        env:
+          BETTER_AUTH_SECRET: ci-build-secret-not-used-at-runtime
+          BETTER_AUTH_URL: http://localhost:3000

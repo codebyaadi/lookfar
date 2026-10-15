@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useTheme } from 'next-themes';
 import { BrandsLogoType, CustomSVGProps } from '../_types';
 import { brandsLogo } from '../_brands';
@@ -9,7 +9,7 @@ import { brandsLogo } from '../_brands';
 const shuffleArray = (array: BrandsLogoType<CustomSVGProps>[]) => {
   return array
     .map((item) => ({ ...item, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
+    .toSorted((a, b) => a.sort - b.sort)
     .map((item) => item);
 };
 
@@ -33,9 +33,9 @@ export const Brands = () => {
         Stay up to date with the world&apos;s best content platforms
       </div>
       <div className='grid grid-cols-3 items-center gap-24'>
-        {shuffledBrands.map(({ id, fc: Logo, alt }) => (
+        {shuffledBrands.map(({ id, fc: Logo }) => (
           <motion.div
-            key={id + alt + Math.random()}
+            key={id}
             className='mx-auto'
             layout
             initial={{ opacity: 0, scale: 0.5, filter: 'blur(10px)' }}

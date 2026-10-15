@@ -1,6 +1,6 @@
-.idx
-.vscode
-tmp
-_tmp
-www/
+.git
 .env
+www
+bin
+tmp
+tools

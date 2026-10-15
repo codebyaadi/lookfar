@@ -14,7 +14,7 @@ export default function Home() {
           <h1 className='text-4xl font-semibold text-amber-300 md:text-4xl lg:text-5xl'>
             Stay Informed. Stay Connected
           </h1>
-          <p className='text-muted-foreground leading-tight'>
+          <p className='leading-tight text-muted-foreground'>
             Feedoku brings the power of real-time news and content aggregation
             to your fingertips. Discover, organize, and read your favorite RSS
             feeds from across the web in one simple platform.

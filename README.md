@@ -1,92 +1,53 @@
 # Feedoku
 
-Feedoku is a modern RSS Feed aggregator built with Next.js, Go, Postgres, Redis, and Kafka. It allows users to aggregate, manage, and read their favorite RSS feeds in one place.
+An AI-powered RSS reader. Subscribe to feeds and Feedoku summarizes and tags every article, writes you a daily briefing, ranks a "For You" feed, and answers questions about everything you follow, with citations.
 
-## 🚀 Features
+> 🚧 Being rebuilt. See [PLAN.md](PLAN.md) for the architecture and roadmap. Phase 0 (foundations) is done.
 
-- Real-time feed updates using Kafka ( Not implemented yet )
-- Fast content delivery with Redis caching
-- Responsive web interface built with Next.js
-- RESTful API powered by Go
-- Feed management and organization
-- Search functionality across all feeds
-- Mobile-friendly interface
+## Stack
 
-## 🛠️ Tech Stack
+| Part | Tech |
+|---|---|
+| Web | Next.js 16, React 19, Tailwind v4, shadcn/ui, better-auth, bun, oxlint + oxfmt |
+| API | Go 1.26, chi, pgx, sqlc (`cmd/api`) |
+| Worker | Go (`cmd/worker`): feed polling and AI jobs |
+| Database | PostgreSQL 17 + pgvector, migrations via goose |
+| AI | Groq / OpenRouter free tiers (OpenAI-compatible), Voyage AI embeddings |
 
-- **Frontend**: Next.js
-- **Backend**: Go (Golang)
-- **Cache**: Redis
-- **Message Broker**: Apache Kafka
-- **Database**: PostgreSQL
+better-auth (in Next.js) owns sign-up and sessions. The Go API checks the signed `better-auth.session_token` cookie with the shared `BETTER_AUTH_SECRET` and looks the session up in Postgres. The browser calls `/api/v1/*` on the Next.js origin, and Next rewrites those calls to the Go API.
 
-## 🔧 Installation
+## Getting started
 
-1. Clone the repository:
+Prerequisites: Go 1.26+, bun, Docker, make.
+
 ```bash
-git clone https://github.com/codebyaadi/feedoku.git
-cd feedoku
+cp .env.example .env                 # set BETTER_AUTH_SECRET (openssl rand -base64 32)
+cp www/.env.example www/.env.local   # use the same BETTER_AUTH_SECRET
+make db                              # Postgres + pgvector in Docker
+make migrate-up
+cd www && bun install && cd ..
 ```
 
-2. Set up the frontend:
+Run each in its own terminal:
+
 ```bash
-cd www
-npm install
-cp .env.example .env
-# Configure your environment variables
+make api      # Go API on :8080 (live reload)
+make worker   # background worker
+make web      # Next.js on :3000
 ```
 
-3. Set up the backend: (work in main directory)
-```bash
-cp .env.example .env
-# Configure your environment variables
-```
+Open http://localhost:3000/signup. After signing up you land on `/app`, which is served using data from the Go API.
 
-4. Start Redis:
-```bash
-redis-server
-```
+## Common tasks
 
-5. Start Kafka:
-```bash
-# Start Zookeeper first
-bin/zookeeper-server-start.sh config/zookeeper.properties
+| Command | What it does |
+|---|---|
+| `make migration name=add_feeds` | new goose migration in `sql/schema` |
+| `make generate` | regenerate sqlc code from `sql/queries` (downloads sqlc into `bin/`) |
+| `make check` | gofmt, vet, tests, oxlint, typecheck |
+| `cd www && bun run format:fix` | format the frontend with oxfmt |
+| `docker compose --profile app up --build` | run Postgres, API and worker all in Docker |
 
-# Start Kafka
-bin/kafka-server-start.sh config/server.properties
-```
+## License
 
-## 🚀 Running the Application
-
-1. Start the frontend development server:
-```bash
-cd frontend
-npm run dev
-```
-
-2. Start the backend server: (work in main directory)
-```bash
-go run main.go
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👥 Authors
-
-- Aditya Rajbhar - [codebyaadi](https://github.com/codebyaadi)
-
-## 🙏 Acknowledgments
-
-- Thanks to all contributors
-- Inspired by various RSS readers and aggregators
-- Built with amazing open source technologies
+MIT. See [LICENSE](LICENSE).

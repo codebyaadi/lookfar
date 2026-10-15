@@ -9,8 +9,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className='font-outfit relative flex h-screen w-full items-center'>
-      <nav className='font-outfit fixed top-0 z-1 w-full bg-transparent px-0 lg:px-6'>
+    <div className='relative flex h-screen w-full items-center'>
+      <nav className='fixed top-0 z-1 w-full bg-transparent px-0 lg:px-6'>
         <div className='mx-4 flex items-center justify-between py-2'>
           <Link href='/' className='font-semibold text-amber-300 lg:text-white'>
             {siteConfig.name}

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,15 +32,14 @@ const formSchema = z.object({
   name: z.string().min(3, {
     message: 'Name must be at least 3 characters',
   }),
-  email: z.string().email({
-    message: 'Invalid email address',
-  }),
+  email: z.email({ message: 'Invalid email address' }),
   password: z.string().min(8, {
     message: 'Password must be at least 8 characters',
   }),
 });
 
 export default function SignUp() {
+  const router = useRouter();
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -50,25 +50,17 @@ export default function SignUp() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      const { data, error } = await authClient.signUp.email({
-        email: values.email,
-        password: values.password,
-        name: values.name,
-      });
-
-      if (error) {
-        toast.error('Account creation failed');
-        console.error('Error:', error);
-        return;
-      }
-
-      toast.success('Account created successfully');
-      console.log('Data:', data);
-    } catch (error) {
-      console.error('Error submitting the form:', error);
-      toast.error('An unexpected error occurred');
+    const { error } = await authClient.signUp.email({
+      email: values.email,
+      password: values.password,
+      name: values.name,
+    });
+    if (error) {
+      toast.error(error.message ?? 'Account creation failed');
+      return;
     }
+    toast.success('Account created');
+    router.push('/app');
   }
 
   return (
@@ -77,8 +69,7 @@ export default function SignUp() {
         <CardHeader>
           <CardTitle>Sign Up</CardTitle>
           <CardDescription>
-            Create an account and discover the world's best UI component
-            framework.
+            Create an account and let AI turn your feeds into a daily briefing.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -136,8 +127,13 @@ export default function SignUp() {
                   </FormItem>
                 )}
               />
-              <Button type='submit' variant='amber' className='mt-4! w-full'>
-                Sign Up
+              <Button
+                type='submit'
+                variant='amber'
+                className='mt-4! w-full'
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? 'Creating account…' : 'Sign Up'}
               </Button>
             </CardContent>
           </form>
