@@ -25,6 +25,8 @@ const (
 	// Cap page downloads per poll so one huge feed can't stall the worker.
 	maxExtractPerPoll = 10
 	maxItemsPerPoll   = 100
+	extractWorkers    = 5
+	extractTimeout    = 8 * time.Second
 )
 
 type Service struct {
@@ -150,20 +152,15 @@ func (s *Service) storeItems(ctx context.Context, feedID int64, items []feed.Ite
 		seen[g] = true
 	}
 
-	extracted := 0
+	var fresh []feed.Item
 	for _, it := range items {
-		if seen[it.GUID] {
-			continue
+		if !seen[it.GUID] {
+			fresh = append(fresh, it)
 		}
-		if len(it.ContentText) < shortContent && it.URL != "" && extracted < maxExtractPerPoll {
-			extracted++
-			if h, t, img, err := s.fetcher.ExtractArticle(ctx, it.URL); err == nil && len(t) > len(it.ContentText) {
-				it.ContentHTML, it.ContentText = h, t
-				if it.ImageURL == "" {
-					it.ImageURL = img
-				}
-			}
-		}
+	}
+	s.extractFullText(ctx, fresh)
+
+	for _, it := range fresh {
 		if err := s.q.InsertArticle(ctx, store.InsertArticleParams{
 			FeedID: feedID, Guid: it.GUID, Url: it.URL, Title: it.Title,
 			Author: nonEmpty(it.Author), PublishedAt: it.PublishedAt, Summary: it.Summary,
@@ -173,6 +170,40 @@ func (s *Service) storeItems(ctx context.Context, feedID int64, items []feed.Ite
 		}
 	}
 	return nil
+}
+
+// extractFullText replaces teaser-only items' content with the readable page
+// text, downloading a bounded number of pages concurrently. Failures are
+// ignored: the feed's own content is kept.
+func (s *Service) extractFullText(ctx context.Context, items []feed.Item) {
+	sem := make(chan struct{}, extractWorkers)
+	var wg sync.WaitGroup
+	budget := maxExtractPerPoll
+	for i := range items {
+		it := &items[i]
+		if len(it.ContentText) >= shortContent || it.URL == "" || budget == 0 {
+			continue
+		}
+		budget--
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			pageCtx, cancel := context.WithTimeout(ctx, extractTimeout)
+			defer cancel()
+			h, t, img, err := s.fetcher.ExtractArticle(pageCtx, it.URL)
+			if err != nil || len(t) <= len(it.ContentText) {
+				return
+			}
+			it.ContentHTML, it.ContentText = h, t
+			it.Summary = feed.Excerpt(t) // feed descriptions are often boilerplate
+			if it.ImageURL == "" {
+				it.ImageURL = img
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func faviconFor(siteURL string) *string {

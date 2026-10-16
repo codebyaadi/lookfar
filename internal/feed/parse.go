@@ -153,6 +153,9 @@ func PlainText(s string) string {
 	return strings.TrimSpace(spaceRe.ReplaceAllString(s, " "))
 }
 
+// Excerpt returns a short plain-text preview of text.
+func Excerpt(text string) string { return truncate(text, 600) }
+
 func truncate(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {
