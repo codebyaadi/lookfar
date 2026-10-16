@@ -1,6 +1,5 @@
 'use client';
 
-import { BorderBeam } from '@/components/magicui/border-beam';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -71,10 +70,12 @@ function SignIn() {
   }
 
   return (
-    <div className='mx-4 w-full md:mx-auto md:w-1/2 lg:mx-auto lg:w-1/2'>
-      <Card className='relative overflow-hidden rounded-md shadow-none'>
+    <div className='w-full max-w-md'>
+      <Card className='relative overflow-hidden rounded-3xl bg-card/80 shadow-[var(--shadow-panel)] backdrop-blur-xl'>
         <CardHeader>
-          <CardTitle>Sign In</CardTitle>
+          <CardTitle className='text-2xl font-extrabold tracking-tight'>
+            Sign In
+          </CardTitle>
           <CardDescription>
             Welcome back. Pick up where your feeds left off.
           </CardDescription>
@@ -89,11 +90,7 @@ function SignIn() {
                   <FormItem>
                     <Label htmlFor='email'>E-Mail</Label>
                     <FormControl>
-                      <Input
-                        placeholder='Enter your E-Mail'
-                        className='rounded focus-visible:ring-0'
-                        {...field}
-                      />
+                      <Input placeholder='Enter your E-Mail' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -109,7 +106,6 @@ function SignIn() {
                       <Input
                         type='password'
                         placeholder='Enter your Password'
-                        className='rounded focus-visible:ring-0'
                         {...field}
                       />
                     </FormControl>
@@ -119,7 +115,7 @@ function SignIn() {
               />
               <Button
                 type='submit'
-                variant='amber'
+                size='lg'
                 className='mt-4! w-full'
                 disabled={loading}
               >
@@ -130,11 +126,13 @@ function SignIn() {
         </Form>
         <CardFooter className='text-sm'>
           Don&apos;t have an account?
-          <Link href='/signup' className='ml-1 underline'>
+          <Link
+            href='/signup'
+            className='ml-1 font-semibold underline underline-offset-4'
+          >
             Sign Up
           </Link>
         </CardFooter>
-        <BorderBeam duration={8} size={100} colorTo='#ffd230' />
       </Card>
     </div>
   );

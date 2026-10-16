@@ -1,5 +1,6 @@
 'use client';
 
+import { Logo } from '@/components/logo';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -133,12 +134,7 @@ function SidebarContent({
   return (
     <div className='flex h-full min-h-0 flex-col'>
       <div className='flex h-14 items-center justify-between px-4 md:px-2'>
-        <span className='flex items-center gap-2 text-base font-semibold tracking-tight'>
-          <span className='grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground'>
-            <NewspaperIcon className='size-4' />
-          </span>
-          Feedoku
-        </span>
+        <Logo />
         <ModeToggle />
       </div>
 

@@ -7,7 +7,7 @@ const links = {
 };
 
 export const siteConfig = {
-  name: 'Feedoku.',
+  name: 'Feedoku',
   description:
     'An AI-powered RSS reader: summaries, daily briefings and answers from the feeds you follow.',
   url: 'https://',

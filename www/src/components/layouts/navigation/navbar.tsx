@@ -1,84 +1,108 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { ModeToggle } from '@/components/mode-toggle';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { siteConfig } from '@/config/site';
-import { authClient } from '@/lib/auth-client';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Logo } from '@/components/logo';
+import { ModeToggle } from '@/components/mode-toggle';
+import { authClient } from '@/lib/auth-client';
+import Link from 'next/link';
 
-const handleSignOut = async () => {
-  await authClient.signOut();
-};
+const links = [
+  { href: '#features', label: 'Features' },
+  { href: '#how', label: 'How it works' },
+  { href: '#faq', label: 'FAQ' },
+];
 
-const Navbar = () => {
+export default function Navbar() {
   const { data: session } = authClient.useSession();
 
   return (
-    <nav className='fixed top-0 z-1 w-full bg-transparent px-0 lg:px-6'>
-      <div className='mx-4 flex items-center justify-between py-2'>
-        <Link href='/' className='font-semibold text-amber-300'>
-          {siteConfig.name}
+    <header className='fixed inset-x-0 top-0 z-40 px-3 pt-3 sm:px-6'>
+      <nav
+        aria-label='Main'
+        className='mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full border bg-card/70 pr-2 pl-4 shadow-[var(--shadow-panel)] backdrop-blur-xl'
+      >
+        <Link href='/' aria-label='Feedoku home'>
+          <Logo />
         </Link>
-        <div className='flex items-center justify-center gap-2 font-normal'>
+
+        <ul className='hidden items-center gap-1 md:flex'>
+          {links.map((l) => (
+            <li key={l.href}>
+              <Button
+                asChild
+                variant='ghost'
+                size='sm'
+                className='text-muted-foreground'
+              >
+                <a href={l.href}>{l.label}</a>
+              </Button>
+            </li>
+          ))}
+        </ul>
+
+        <div className='flex items-center gap-1.5'>
           <ModeToggle />
           {session ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger className='focus:outline-none'>
-                <Avatar>
-                  <AvatarImage src={session.user.image || ''} />
-                  <AvatarFallback>{session.user.name[0]}</AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className='w-42 rounded'>
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    Profile
-                    <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    Settings
-                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
-                  </DropdownMenuItem>
+            <>
+              <Button asChild size='sm'>
+                <Link href='/app'>Open reader</Link>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label='Account menu'
+                  className='rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+                >
+                  <Avatar className='size-8'>
+                    <AvatarImage src={session.user.image || ''} />
+                    <AvatarFallback>{session.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align='end'
+                  className='w-48 rounded-2xl p-1.5'
+                >
+                  <DropdownMenuLabel className='truncate'>
+                    {session.user.email}
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={handleSignOut}>
-                    Log out
-                    <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
+                  <DropdownMenuItem asChild className='rounded-xl'>
+                    <Link href='/app'>Open reader</Link>
                   </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem
+                    className='rounded-xl'
+                    onSelect={() => authClient.signOut()}
+                  >
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button
-                variant='secondary'
+                asChild
+                variant='ghost'
                 size='sm'
-                className='rounded-sm shadow-none'
+                className='hidden sm:inline-flex'
               >
-                <Link href='/signin'>Log In</Link>
+                <Link href='/signin'>Log in</Link>
               </Button>
-              <Button variant='amber' size='sm'>
-                <Link href='/signup'>Sign Up</Link>
+              <Button asChild size='sm'>
+                <Link href='/signup'>Get started</Link>
               </Button>
             </>
           )}
         </div>
-      </div>
-    </nav>
+      </nav>
+    </header>
   );
-};
-
-export default Navbar;
+}

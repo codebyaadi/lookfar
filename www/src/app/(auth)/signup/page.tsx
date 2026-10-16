@@ -26,7 +26,6 @@ import {
 } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
-import { BorderBeam } from '@/components/magicui/border-beam';
 
 const formSchema = z.object({
   name: z.string().min(3, {
@@ -65,9 +64,11 @@ export default function SignUp() {
 
   return (
     <div className='mx-4 w-full md:mx-auto lg:mx-auto lg:w-1/2'>
-      <Card className='relative overflow-hidden rounded-md shadow-none'>
+      <Card className='relative overflow-hidden rounded-3xl bg-card/80 shadow-[var(--shadow-panel)] backdrop-blur-xl'>
         <CardHeader>
-          <CardTitle>Sign Up</CardTitle>
+          <CardTitle className='text-2xl font-extrabold tracking-tight'>
+            Sign Up
+          </CardTitle>
           <CardDescription>
             Create an account and let AI turn your feeds into a daily briefing.
           </CardDescription>
@@ -82,11 +83,7 @@ export default function SignUp() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder='Enter your Name'
-                        className='rounded focus-visible:ring-0'
-                        {...field}
-                      />
+                      <Input placeholder='Enter your Name' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -99,11 +96,7 @@ export default function SignUp() {
                   <FormItem>
                     <Label htmlFor='email'>E-Mail</Label>
                     <FormControl>
-                      <Input
-                        placeholder='Enter your E-Mail'
-                        className='rounded focus-visible:ring-0'
-                        {...field}
-                      />
+                      <Input placeholder='Enter your E-Mail' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -119,7 +112,6 @@ export default function SignUp() {
                       <Input
                         type='password'
                         placeholder='Enter your Password'
-                        className='rounded focus-visible:ring-0'
                         {...field}
                       />
                     </FormControl>
@@ -129,7 +121,7 @@ export default function SignUp() {
               />
               <Button
                 type='submit'
-                variant='amber'
+                size='lg'
                 className='mt-4! w-full'
                 disabled={form.formState.isSubmitting}
               >
@@ -140,11 +132,13 @@ export default function SignUp() {
         </Form>
         <CardFooter className='text-sm'>
           Already have an account?
-          <Link href='/signin' className='ml-1 underline'>
+          <Link
+            href='/signin'
+            className='ml-1 font-semibold underline underline-offset-4'
+          >
             Sign In
           </Link>
         </CardFooter>
-        <BorderBeam duration={8} size={100} colorTo='#ffd230' />
       </Card>
     </div>
   );
