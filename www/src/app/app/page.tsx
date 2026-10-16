@@ -7,8 +7,13 @@ export const metadata = { title: 'Feedoku' };
 
 export default async function AppHome() {
   let user: User;
+  let aiEnabled = false;
   try {
-    ({ user } = await apiFetch<{ user: User }>('/v1/me'));
+    const me = await apiFetch<{ user: User; features?: { ai?: boolean } }>(
+      '/v1/me'
+    );
+    user = me.user;
+    aiEnabled = !!me.features?.ai;
   } catch (err) {
     if (err instanceof ApiError && err.status === 401)
       redirect('/signin?next=/app');
@@ -16,7 +21,7 @@ export default async function AppHome() {
   }
   return (
     <Providers>
-      <Reader user={user} />
+      <Reader user={user} aiEnabled={aiEnabled} />
     </Providers>
   );
 }

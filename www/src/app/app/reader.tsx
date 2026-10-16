@@ -26,7 +26,13 @@ import { Sidebar } from './sidebar';
 
 const FILTERS = new Set<string>(['all', 'unread', 'saved']);
 
-export function Reader({ user }: { user: User }) {
+export function Reader({
+  user,
+  aiEnabled,
+}: {
+  user: User;
+  aiEnabled: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -37,12 +43,14 @@ export function Reader({ user }: { user: User }) {
     ? (params.get('filter') as ArticleFilter)
     : 'all';
   const feedId = Number(params.get('feed')) || undefined;
+  const topic = params.get('topic') || undefined;
   const articleId = Number(params.get('a')) || undefined;
 
   const navigate = useCallback(
     (next: {
       filter?: ArticleFilter;
       feed?: number | null;
+      topic?: string | null;
       a?: number | null;
     }) => {
       const q = new URLSearchParams(params.toString());
@@ -50,6 +58,10 @@ export function Reader({ user }: { user: User }) {
       if (next.feed !== undefined) {
         if (next.feed) q.set('feed', String(next.feed));
         else q.delete('feed');
+      }
+      if (next.topic !== undefined) {
+        if (next.topic) q.set('topic', next.topic);
+        else q.delete('topic');
       }
       if (next.a !== undefined) {
         if (next.a) q.set('a', String(next.a));
@@ -62,11 +74,19 @@ export function Reader({ user }: { user: User }) {
 
   const feeds = useQuery({ queryKey: ['feeds'], queryFn: api.feeds });
 
+  // Topics only exist once articles have been enriched.
+  const topics = useQuery({
+    queryKey: ['topics'],
+    queryFn: api.topics,
+    enabled: aiEnabled,
+    refetchInterval: aiEnabled ? 60_000 : false,
+  });
+
   const list = useInfiniteQuery({
-    queryKey: ['articles', { filter, feedId }],
+    queryKey: ['articles', { filter, feedId, topic }],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
-      api.articles({ filter, feed: feedId, cursor: pageParam }),
+      api.articles({ filter, feed: feedId, topic, cursor: pageParam }),
     getNextPageParam: (last) => last.nextCursor,
   });
   const articles = useMemo(
@@ -78,6 +98,9 @@ export function Reader({ user }: { user: User }) {
     queryKey: ['article', articleId],
     queryFn: () => api.article(articleId!),
     enabled: !!articleId,
+    // While the summary is being generated, check back until it lands.
+    refetchInterval: (query) =>
+      aiEnabled && query.state.data?.ai.status === 'pending' ? 4000 : false,
   });
 
   // Patch read/saved flags in every cached list and the open article so the UI
@@ -201,6 +224,7 @@ export function Reader({ user }: { user: User }) {
 
   const activeFeed = feeds.data?.find((f) => f.id === feedId);
   const heading =
+    topic ??
     activeFeed?.title ??
     { all: 'All articles', unread: 'Unread', saved: 'Saved' }[filter];
 
@@ -212,9 +236,11 @@ export function Reader({ user }: { user: User }) {
         loading={feeds.isLoading}
         filter={filter}
         feedId={feedId}
+        topic={topic}
+        topics={topics.data ?? []}
         mobileOpen={menuOpen}
         onMobileOpenChange={setMenuOpen}
-        onSelect={(next) => navigate({ ...next, a: null })}
+        onSelect={(next) => navigate({ topic: null, ...next, a: null })}
       />
 
       <section
@@ -269,6 +295,10 @@ export function Reader({ user }: { user: User }) {
       >
         <ArticleView
           article={detail.data}
+          aiEnabled={aiEnabled}
+          onTopic={(t) =>
+            navigate({ topic: t, feed: null, filter: 'all', a: null })
+          }
           loading={!!articleId && detail.isLoading}
           error={!!articleId && detail.isError}
           onBack={() => navigate({ a: null })}

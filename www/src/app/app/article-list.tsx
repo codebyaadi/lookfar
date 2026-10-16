@@ -96,10 +96,23 @@ export function ArticleList({
               >
                 {a.title}
               </h2>
-              {a.excerpt && (
+              {(a.tldr || a.excerpt) && (
                 <p className='mt-1 line-clamp-2 text-xs text-muted-foreground'>
-                  {a.excerpt}
+                  {a.tldr || a.excerpt}
                 </p>
+              )}
+              {a.topics.length > 0 && (
+                <div className='mt-2 flex flex-wrap gap-1'>
+                  {a.topics.slice(0, 2).map((t) => (
+                    <Badge
+                      key={t}
+                      variant='secondary'
+                      className='rounded-full px-2 py-0 text-[10px] font-medium'
+                    >
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
               )}
             </button>
           </li>

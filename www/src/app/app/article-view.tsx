@@ -14,11 +14,14 @@ import {
   ArrowLeftIcon,
   BookmarkIcon,
   CircleDotIcon,
+  SparklesIcon,
   ExternalLinkIcon,
 } from 'lucide-react';
 
 type Props = {
   article?: ArticleDetail;
+  aiEnabled: boolean;
+  onTopic: (topic: string) => void;
   loading: boolean;
   error: boolean;
   onBack: () => void;
@@ -61,6 +64,8 @@ function IconAction({
 }
 
 export function ArticleView({
+  aiEnabled,
+  onTopic,
   article,
   loading,
   error,
@@ -180,6 +185,7 @@ export function ArticleView({
           <h1 className='mt-2 text-2xl leading-tight font-semibold tracking-tight sm:text-3xl'>
             {article.title}
           </h1>
+          <AiSummary ai={article.ai} enabled={aiEnabled} onTopic={onTopic} />
           {/* contentHtml is sanitised server-side (bluemonday) before storage. */}
           <div
             className='article-body mt-6'
@@ -201,6 +207,82 @@ export function ArticleView({
         </article>
       </ScrollArea>
     </>
+  );
+}
+
+const SENTIMENT: Record<string, string> = {
+  positive: 'Positive tone',
+  negative: 'Critical tone',
+};
+
+function AiSummary({
+  ai,
+  enabled,
+  onTopic,
+}: {
+  ai: ArticleDetail['ai'];
+  enabled: boolean;
+  onTopic: (topic: string) => void;
+}) {
+  if (ai.status === 'pending' && enabled)
+    return (
+      <div
+        className='mt-6 space-y-2 rounded-2xl border bg-accent/40 p-4'
+        aria-busy
+        aria-label='Generating summary'
+      >
+        <p className='flex items-center gap-1.5 text-xs font-semibold text-accent-foreground'>
+          <SparklesIcon className='size-3.5 animate-pulse' /> Summarizing…
+        </p>
+        <Skeleton className='h-3 w-full' />
+        <Skeleton className='h-3 w-4/5' />
+      </div>
+    );
+
+  if (ai.status !== 'done' || (!ai.tldr && ai.readingMinutes === 0))
+    return null;
+
+  return (
+    <section
+      aria-label='AI summary'
+      className='mt-6 rounded-2xl border bg-accent/40 p-4'
+    >
+      <p className='flex items-center gap-1.5 text-xs font-semibold text-accent-foreground'>
+        <SparklesIcon className='size-3.5' /> {ai.tldr ? 'TL;DR' : 'Quick read'}
+        <span className='font-normal text-muted-foreground'>
+          · {ai.readingMinutes} min read
+          {SENTIMENT[ai.sentiment] ? ` · ${SENTIMENT[ai.sentiment]}` : ''}
+        </span>
+      </p>
+      {ai.tldr && <p className='mt-2 text-sm leading-relaxed'>{ai.tldr}</p>}
+      {ai.keyPoints.length > 0 && (
+        <ul className='mt-3 space-y-1.5 text-sm'>
+          {ai.keyPoints.map((p) => (
+            <li key={p} className='flex gap-2'>
+              <span
+                className='mt-2 size-1 shrink-0 rounded-full bg-brand'
+                aria-hidden
+              />
+              {p}
+            </li>
+          ))}
+        </ul>
+      )}
+      {ai.topics.length > 0 && (
+        <div className='mt-3 flex flex-wrap gap-1.5'>
+          {ai.topics.map((t) => (
+            <button
+              key={t}
+              type='button'
+              onClick={() => onTopic(t)}
+              className='rounded-full border bg-card/70 px-2.5 py-0.5 text-xs font-medium transition-colors hover:bg-accent'
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

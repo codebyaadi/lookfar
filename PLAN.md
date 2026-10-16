@@ -160,7 +160,7 @@ Design direction: calm, reading-first (serif article body, generous whitespace),
 |---|---|---|
 | **0. Foundations** ✅ | docker-compose (pg+pgvector), env cleanup, delete dead code, `cmd/api` + `cmd/worker` that compile, chi router, session-based auth middleware, CI (go build/vet/test + next build/lint), upgrade all deps (Next 16, React 19.3, better-auth 1.7, Zod 4, TS 7), oxlint + oxfmt, Sora font | `make db migrate-up` + `make api` + `make web` run the stack; `/v1/me` works with a better-auth session (verified end to end) |
 | **1. Core reader** ✅ | Feed add/autodiscover, RSS+Atom parse (gofeed), conditional GET, readability extraction, poll scheduler, articles API, app shell + reader UI, read/save state, OPML import | Add a feed in the UI → articles appear within a minute and are readable |
-| **2. AI enrichment** | Job queue, LLM enrichment (Groq + fallback) (A1+A2), embeddings, usage tracking, UI for summaries/topics | New articles show TL;DR + topics automatically |
+| **2. AI enrichment** ✅ | Job queue, LLM enrichment (Groq + fallback) (A1+A2), embeddings, usage tracking, UI for summaries/topics | New articles show TL;DR + topics automatically |
 | **3. Search & Ask** | Hybrid search (A6), RAG chat with SSE + citations (A5) | Ask a question, get a streamed cited answer |
 | **4. Briefing & ranking** | Clustering (A3), daily briefing (A4), For You (A7), onboarding (A8) | Morning briefing generated per user; For You is default view |
 | **5. Polish & ship** | Landing rewrite, keyboard shortcuts, empty/error states, rate limits, tests, Dockerfiles, deploy guide | Deployable with one compose file |

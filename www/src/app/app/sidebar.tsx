@@ -15,7 +15,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { User } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
-import { api, type ArticleFilter, type Feed } from '@/lib/reader-api';
+import {
+  api,
+  type ArticleFilter,
+  type Feed,
+  type Topic,
+} from '@/lib/reader-api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BookmarkIcon,
@@ -29,7 +34,11 @@ import { useMemo } from 'react';
 import { toast } from 'sonner';
 import { AddFeedDialog } from './add-feed-dialog';
 
-type Selection = { filter?: ArticleFilter; feed?: number | null };
+type Selection = {
+  filter?: ArticleFilter;
+  feed?: number | null;
+  topic?: string | null;
+};
 
 type Props = {
   user: User;
@@ -37,6 +46,8 @@ type Props = {
   loading: boolean;
   filter: ArticleFilter;
   feedId?: number;
+  topic?: string;
+  topics: Topic[];
   mobileOpen: boolean;
   onMobileOpenChange: (open: boolean) => void;
   onSelect: (next: Selection) => void;
@@ -98,6 +109,8 @@ function SidebarContent({
   loading,
   filter,
   feedId,
+  topic,
+  topics,
   onMobileOpenChange,
   onSelect,
 }: Props) {
@@ -142,14 +155,14 @@ function SidebarContent({
         <nav className='space-y-5 px-3 py-2 md:px-0' aria-label='Library'>
           <div className='space-y-0.5'>
             <NavItem
-              active={!feedId && filter === 'all'}
+              active={!feedId && !topic && filter === 'all'}
               icon={<NewspaperIcon className='size-4' />}
               onClick={() => select({ filter: 'all', feed: null })}
             >
               All articles
             </NavItem>
             <NavItem
-              active={!feedId && filter === 'unread'}
+              active={!feedId && !topic && filter === 'unread'}
               icon={<InboxIcon className='size-4' />}
               count={totalUnread}
               onClick={() => select({ filter: 'unread', feed: null })}
@@ -157,7 +170,7 @@ function SidebarContent({
               Unread
             </NavItem>
             <NavItem
-              active={!feedId && filter === 'saved'}
+              active={!feedId && !topic && filter === 'saved'}
               icon={<BookmarkIcon className='size-4' />}
               onClick={() => select({ filter: 'saved', feed: null })}
             >
@@ -222,6 +235,32 @@ function SidebarContent({
               </div>
             ))}
           </div>
+
+          {topics.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <h2 className='mb-1 pl-2.5 text-xs font-medium tracking-wider text-muted-foreground uppercase'>
+                  Topics
+                </h2>
+                <ul className='space-y-0.5'>
+                  {topics.map((t) => (
+                    <li key={t.name}>
+                      <NavItem
+                        active={topic === t.name}
+                        count={t.count}
+                        onClick={() =>
+                          select({ topic: t.name, feed: null, filter: 'all' })
+                        }
+                      >
+                        {t.name}
+                      </NavItem>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
         </nav>
       </ScrollArea>
 

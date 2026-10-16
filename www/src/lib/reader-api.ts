@@ -25,7 +25,20 @@ export type ArticleSummary = {
   imageUrl: string | null;
   read: boolean;
   saved: boolean;
+  tldr: string;
+  topics: string[];
 };
+
+export type ArticleAI = {
+  status: 'pending' | 'done' | 'failed';
+  tldr: string;
+  keyPoints: string[];
+  topics: string[];
+  sentiment: string;
+  readingMinutes: number;
+};
+
+export type Topic = { name: string; count: number };
 
 export type ArticleDetail = {
   id: number;
@@ -41,6 +54,7 @@ export type ArticleDetail = {
   read: boolean;
   saved: boolean;
   rating: number;
+  ai: ArticleAI;
 };
 
 export type ArticlePage = {
@@ -80,6 +94,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   feeds: () => request<{ feeds: Feed[] }>('/feeds').then((r) => r.feeds),
+  topics: () => request<{ topics: Topic[] }>('/topics').then((r) => r.topics),
   addFeed: (url: string) =>
     request<{ feed: Feed }>('/feeds', {
       method: 'POST',
@@ -96,10 +111,12 @@ export const api = {
   articles: (p: {
     feed?: number;
     filter: ArticleFilter;
+    topic?: string;
     cursor?: string | null;
   }) => {
     const q = new URLSearchParams({ filter: p.filter });
     if (p.feed) q.set('feed', String(p.feed));
+    if (p.topic) q.set('topic', p.topic);
     if (p.cursor) q.set('cursor', p.cursor);
     return request<ArticlePage>(`/articles?${q}`);
   },
