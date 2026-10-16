@@ -6,6 +6,9 @@ package store
 
 import (
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 type Account struct {
@@ -24,6 +27,14 @@ type Account struct {
 	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
+type AiUsage struct {
+	Day          pgtype.Date `json:"day"`
+	Scope        string      `json:"scope"`
+	Requests     int32       `json:"requests"`
+	InputTokens  int64       `json:"inputTokens"`
+	OutputTokens int64       `json:"outputTokens"`
+}
+
 type Article struct {
 	ID          int64       `json:"id"`
 	FeedID      int64       `json:"feedId"`
@@ -40,6 +51,21 @@ type Article struct {
 	SearchTsv   interface{} `json:"searchTsv"`
 }
 
+type ArticleAi struct {
+	ArticleID      int64           `json:"articleId"`
+	Tldr           string          `json:"tldr"`
+	KeyPoints      []byte          `json:"keyPoints"`
+	Topics         []string        `json:"topics"`
+	Entities       []byte          `json:"entities"`
+	Sentiment      *string         `json:"sentiment"`
+	ReadingMinutes int32           `json:"readingMinutes"`
+	Model          string          `json:"model"`
+	Status         string          `json:"status"`
+	Embedding      pgvector.Vector `json:"embedding"`
+	EmbedAttempts  int32           `json:"embedAttempts"`
+	UpdatedAt      time.Time       `json:"updatedAt"`
+}
+
 type Feed struct {
 	ID            int64      `json:"id"`
 	Url           string     `json:"url"`
@@ -54,6 +80,20 @@ type Feed struct {
 	ErrorCount    int32      `json:"errorCount"`
 	LastError     *string    `json:"lastError"`
 	CreatedAt     time.Time  `json:"createdAt"`
+}
+
+type Job struct {
+	ID          int64      `json:"id"`
+	Kind        string     `json:"kind"`
+	Payload     []byte     `json:"payload"`
+	DedupeKey   *string    `json:"dedupeKey"`
+	RunAt       time.Time  `json:"runAt"`
+	Attempts    int32      `json:"attempts"`
+	MaxAttempts int32      `json:"maxAttempts"`
+	LockedAt    *time.Time `json:"lockedAt"`
+	DoneAt      *time.Time `json:"doneAt"`
+	LastError   *string    `json:"lastError"`
+	CreatedAt   time.Time  `json:"createdAt"`
 }
 
 type Session struct {

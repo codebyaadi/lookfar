@@ -22,8 +22,10 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/mmcdole/gofeed v1.5.0 // indirect
 	github.com/mmcdole/goxpp/v2 v2.0.0 // indirect
+	github.com/pgvector/pgvector-go v0.4.1 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/time v0.16.0 // indirect
 )

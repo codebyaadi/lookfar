@@ -52,6 +52,7 @@ func run() error {
 		Ingest:      ingest.New(queries, feed.NewFetcher(cfg.AllowPrivateFeeds)),
 		DB:          pool,
 		CORSOrigins: cfg.CORSOrigins,
+		AIEnabled:   cfg.AIEnabled(),
 	})
 
 	srv := &http.Server{

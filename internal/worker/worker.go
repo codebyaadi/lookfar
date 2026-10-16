@@ -6,6 +6,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/codebyaadi/feedoku/internal/jobs"
 )
 
 type Pinger interface {
@@ -21,20 +23,36 @@ type Poller interface {
 	PollDue(ctx context.Context, batch, concurrency int) (int, error)
 }
 
-type Worker struct {
-	db     Pinger
-	poller Poller
-	tick   time.Duration
+// Sweeper does one batch of background work (e.g. embedding) and returns how
+// many items it handled. Rate-limit errors are logged and retried next tick.
+type Sweeper interface {
+	Sweep(ctx context.Context) (int, error)
 }
 
-func New(db Pinger, poller Poller, tick time.Duration) *Worker {
-	return &Worker{db: db, poller: poller, tick: tick}
+type Options struct {
+	DB     Pinger
+	Poller Poller
+	Tick   time.Duration
+	// Jobs is optional; when set its handlers run alongside feed polling.
+	Jobs           *jobs.Runner
+	JobConcurrency int
+	Embedder       Sweeper
+	EmbedBatch     int
 }
+
+type Worker struct {
+	Options
+}
+
+func New(o Options) *Worker { return &Worker{o} }
 
 // Run blocks until ctx is cancelled, running one pass per tick.
 func (w *Worker) Run(ctx context.Context) error {
-	slog.Info("worker started", "tick", w.tick)
-	t := time.NewTicker(w.tick)
+	slog.Info("worker started", "tick", w.Tick, "jobs", w.Jobs != nil, "embeddings", w.Embedder != nil)
+	if w.Jobs != nil {
+		go w.Jobs.Run(ctx, w.JobConcurrency)
+	}
+	t := time.NewTicker(w.Tick)
 	defer t.Stop()
 
 	for {
@@ -48,16 +66,38 @@ func (w *Worker) Run(ctx context.Context) error {
 	}
 }
 
+func (w *Worker) sweep(ctx context.Context) {
+	if w.Embedder == nil {
+		return
+	}
+	for ctx.Err() == nil {
+		n, err := w.Embedder.Sweep(ctx)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.Warn("embedding sweep", "err", err)
+			}
+			return
+		}
+		if n > 0 {
+			slog.Info("embedded articles", "count", n)
+		}
+		if n < w.EmbedBatch {
+			return
+		}
+	}
+}
+
 func (w *Worker) pass(ctx context.Context) {
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := w.db.Ping(pingCtx); err != nil && ctx.Err() == nil {
+	if err := w.DB.Ping(pingCtx); err != nil && ctx.Err() == nil {
 		slog.Error("database unreachable", "err", err)
 		return
 	}
+	w.sweep(ctx)
 	// Keep draining while there is a backlog of due feeds.
 	for ctx.Err() == nil {
-		n, err := w.poller.PollDue(ctx, pollBatch, pollConcurrency)
+		n, err := w.Poller.PollDue(ctx, pollBatch, pollConcurrency)
 		if err != nil {
 			if ctx.Err() == nil {
 				slog.Error("poll feeds", "err", err)

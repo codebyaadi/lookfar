@@ -53,11 +53,18 @@ SELECT
     COALESCE(s.custom_title, NULLIF(f.title, ''), f.url)::text AS feed_title,
     (ua.read_at IS NOT NULL)::boolean AS is_read,
     COALESCE(ua.saved, false)::boolean AS saved,
-    COALESCE(ua.rating, 0)::smallint AS rating
+    COALESCE(ua.rating, 0)::smallint AS rating,
+    COALESCE(ai.status, 'pending')::text AS ai_status,
+    COALESCE(ai.tldr, '')::text AS tldr,
+    COALESCE(ai.key_points, '[]'::jsonb) AS key_points,
+    COALESCE(ai.topics, '{}')::text[] AS topics,
+    COALESCE(ai.sentiment, '')::text AS sentiment,
+    COALESCE(ai.reading_minutes, 0)::int AS reading_minutes
 FROM articles a
 JOIN feeds f ON f.id = a.feed_id
 JOIN subscriptions s ON s.feed_id = a.feed_id AND s.user_id = $1
 LEFT JOIN user_article ua ON ua.article_id = a.id AND ua.user_id = $1
+LEFT JOIN article_ai ai ON ai.article_id = a.id
 WHERE a.id = $2
 `
 
@@ -67,19 +74,25 @@ type GetArticleParams struct {
 }
 
 type GetArticleRow struct {
-	ID          int64     `json:"id"`
-	FeedID      int64     `json:"feedId"`
-	Url         string    `json:"url"`
-	Title       string    `json:"title"`
-	Author      *string   `json:"author"`
-	PublishedAt time.Time `json:"publishedAt"`
-	ContentHtml string    `json:"contentHtml"`
-	Summary     string    `json:"summary"`
-	ImageUrl    *string   `json:"imageUrl"`
-	FeedTitle   string    `json:"feedTitle"`
-	IsRead      bool      `json:"isRead"`
-	Saved       bool      `json:"saved"`
-	Rating      int16     `json:"rating"`
+	ID             int64     `json:"id"`
+	FeedID         int64     `json:"feedId"`
+	Url            string    `json:"url"`
+	Title          string    `json:"title"`
+	Author         *string   `json:"author"`
+	PublishedAt    time.Time `json:"publishedAt"`
+	ContentHtml    string    `json:"contentHtml"`
+	Summary        string    `json:"summary"`
+	ImageUrl       *string   `json:"imageUrl"`
+	FeedTitle      string    `json:"feedTitle"`
+	IsRead         bool      `json:"isRead"`
+	Saved          bool      `json:"saved"`
+	Rating         int16     `json:"rating"`
+	AiStatus       string    `json:"aiStatus"`
+	Tldr           string    `json:"tldr"`
+	KeyPoints      []byte    `json:"keyPoints"`
+	Topics         []string  `json:"topics"`
+	Sentiment      string    `json:"sentiment"`
+	ReadingMinutes int32     `json:"readingMinutes"`
 }
 
 func (q *Queries) GetArticle(ctx context.Context, arg GetArticleParams) (GetArticleRow, error) {
@@ -99,14 +112,28 @@ func (q *Queries) GetArticle(ctx context.Context, arg GetArticleParams) (GetArti
 		&i.IsRead,
 		&i.Saved,
 		&i.Rating,
+		&i.AiStatus,
+		&i.Tldr,
+		&i.KeyPoints,
+		&i.Topics,
+		&i.Sentiment,
+		&i.ReadingMinutes,
 	)
 	return i, err
 }
 
 const insertArticle = `-- name: InsertArticle :exec
-INSERT INTO articles (feed_id, guid, url, title, author, published_at, summary, content_html, content_text, image_url)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-ON CONFLICT (feed_id, guid) DO NOTHING
+WITH a AS (
+    INSERT INTO articles (feed_id, guid, url, title, author, published_at, summary, content_html, content_text, image_url)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    ON CONFLICT (feed_id, guid) DO NOTHING
+    RETURNING id
+), ai AS (
+    INSERT INTO article_ai (article_id) SELECT id FROM a
+)
+INSERT INTO jobs (kind, payload, dedupe_key)
+SELECT 'enrich_article', jsonb_build_object('article_id', id), 'enrich:' || id FROM a
+ON CONFLICT (dedupe_key) DO NOTHING
 `
 
 type InsertArticleParams struct {
@@ -122,6 +149,7 @@ type InsertArticleParams struct {
 	ImageUrl    *string   `json:"imageUrl"`
 }
 
+// New articles get a pending article_ai row and an enrichment job in the same statement.
 func (q *Queries) InsertArticle(ctx context.Context, arg InsertArticleParams) error {
 	_, err := q.db.Exec(ctx, insertArticle,
 		arg.FeedID,
@@ -151,23 +179,28 @@ SELECT
     COALESCE(s.custom_title, NULLIF(f.title, ''), f.url)::text AS feed_title,
     f.favicon AS feed_favicon,
     (ua.read_at IS NOT NULL)::boolean AS is_read,
-    COALESCE(ua.saved, false)::boolean AS saved
+    COALESCE(ua.saved, false)::boolean AS saved,
+    COALESCE(NULLIF(ai.tldr, ''), '')::text AS tldr,
+    COALESCE(ai.topics, '{}')::text[] AS topics
 FROM articles a
 JOIN feeds f ON f.id = a.feed_id
 JOIN subscriptions s ON s.feed_id = a.feed_id AND s.user_id = $1
 LEFT JOIN user_article ua ON ua.article_id = a.id AND ua.user_id = $1
+LEFT JOIN article_ai ai ON ai.article_id = a.id AND ai.status = 'done'
 WHERE ($2::bigint IS NULL OR a.feed_id = $2)
-  AND (NOT $3::boolean OR ua.saved)
-  AND (NOT $4::boolean OR ua.read_at IS NULL)
-  AND ($5::timestamptz IS NULL
-       OR (a.published_at, a.id) < ($5::timestamptz, $6::bigint))
+  AND ($3::text IS NULL OR $3::text = ANY(ai.topics))
+  AND (NOT $4::boolean OR ua.saved)
+  AND (NOT $5::boolean OR ua.read_at IS NULL)
+  AND ($6::timestamptz IS NULL
+       OR (a.published_at, a.id) < ($6::timestamptz, $7::bigint))
 ORDER BY a.published_at DESC, a.id DESC
-LIMIT $7::int
+LIMIT $8::int
 `
 
 type ListArticlesParams struct {
 	UserID          string     `json:"userId"`
 	FeedID          *int64     `json:"feedId"`
+	Topic           *string    `json:"topic"`
 	SavedOnly       bool       `json:"savedOnly"`
 	UnreadOnly      bool       `json:"unreadOnly"`
 	BeforePublished *time.Time `json:"beforePublished"`
@@ -188,6 +221,8 @@ type ListArticlesRow struct {
 	FeedFavicon *string   `json:"feedFavicon"`
 	IsRead      bool      `json:"isRead"`
 	Saved       bool      `json:"saved"`
+	Tldr        string    `json:"tldr"`
+	Topics      []string  `json:"topics"`
 }
 
 // Cursor is (published_at, id) of the last row of the previous page.
@@ -195,6 +230,7 @@ func (q *Queries) ListArticles(ctx context.Context, arg ListArticlesParams) ([]L
 	rows, err := q.db.Query(ctx, listArticles,
 		arg.UserID,
 		arg.FeedID,
+		arg.Topic,
 		arg.SavedOnly,
 		arg.UnreadOnly,
 		arg.BeforePublished,
@@ -221,6 +257,8 @@ func (q *Queries) ListArticles(ctx context.Context, arg ListArticlesParams) ([]L
 			&i.FeedFavicon,
 			&i.IsRead,
 			&i.Saved,
+			&i.Tldr,
+			&i.Topics,
 		); err != nil {
 			return nil, err
 		}

@@ -27,6 +27,8 @@ type Deps struct {
 	Queries     *store.Queries
 	Ingest      *ingest.Service
 	CORSOrigins []string
+	// AIEnabled tells the UI whether summaries are being generated.
+	AIEnabled bool
 }
 
 func NewRouter(d Deps) http.Handler {
@@ -47,7 +49,7 @@ func NewRouter(d Deps) http.Handler {
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(requireUser(d.Auth))
-		r.Get("/me", getMe)
+		r.Get("/me", getMe(d.AIEnabled))
 		(&reader{q: d.Queries, ingest: d.Ingest}).routes(r)
 	})
 
@@ -70,8 +72,13 @@ func healthz(db Pinger) http.HandlerFunc {
 	}
 }
 
-func getMe(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"user": userFrom(r.Context())})
+func getMe(aiEnabled bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"user":     userFrom(r.Context()),
+			"features": map[string]bool{"ai": aiEnabled},
+		})
+	}
 }
 
 type ctxKey struct{}

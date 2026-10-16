@@ -43,6 +43,7 @@ func (rd *reader) routes(r chi.Router) {
 	r.Patch("/feeds/{id}", rd.updateFeed)
 	r.Delete("/feeds/{id}", rd.deleteFeed)
 
+	r.Get("/topics", rd.listTopics)
 	r.Get("/articles", rd.listArticles)
 	r.Post("/articles/read-all", rd.markAllRead)
 	r.Get("/articles/{id}", rd.getArticle)
@@ -250,6 +251,8 @@ type articleDTO struct {
 	ImageURL    *string   `json:"imageUrl"`
 	Read        bool      `json:"read"`
 	Saved       bool      `json:"saved"`
+	TLDR        string    `json:"tldr"`
+	Topics      []string  `json:"topics"`
 }
 
 func (rd *reader) listArticles(w http.ResponseWriter, r *http.Request) {
@@ -271,6 +274,9 @@ func (rd *reader) listArticles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		params.FeedID = &id
+	}
+	if t := strings.TrimSpace(q.Get("topic")); t != "" {
+		params.Topic = &t
 	}
 	if c := q.Get("cursor"); c != "" {
 		ts, id, err := decodeCursor(c)
@@ -298,7 +304,7 @@ func (rd *reader) listArticles(w http.ResponseWriter, r *http.Request) {
 		out = append(out, articleDTO{
 			ID: a.ID, FeedID: a.FeedID, FeedTitle: a.FeedTitle, FeedFavicon: a.FeedFavicon, URL: a.Url,
 			Title: a.Title, Author: a.Author, PublishedAt: a.PublishedAt, Excerpt: a.Excerpt,
-			ImageURL: a.ImageUrl, Read: a.IsRead, Saved: a.Saved,
+			ImageURL: a.ImageUrl, Read: a.IsRead, Saved: a.Saved, TLDR: a.Tldr, Topics: a.Topics,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"articles": out, "nextCursor": next})
@@ -318,7 +324,16 @@ func (rd *reader) getArticle(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, "get article", err)
 		return
 	}
+	var keyPoints []string
+	_ = json.Unmarshal(a.KeyPoints, &keyPoints)
+	if keyPoints == nil {
+		keyPoints = []string{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"article": map[string]any{
+		"ai": map[string]any{
+			"status": a.AiStatus, "tldr": a.Tldr, "keyPoints": keyPoints, "topics": a.Topics,
+			"sentiment": a.Sentiment, "readingMinutes": a.ReadingMinutes,
+		},
 		"id": a.ID, "feedId": a.FeedID, "feedTitle": a.FeedTitle, "url": a.Url, "title": a.Title,
 		"author": a.Author, "publishedAt": a.PublishedAt, "contentHtml": a.ContentHtml, "summary": a.Summary,
 		"imageUrl": a.ImageUrl, "read": a.IsRead, "saved": a.Saved, "rating": a.Rating,
@@ -431,4 +446,21 @@ func cleanFolder(s *string) *string {
 func serverError(w http.ResponseWriter, r *http.Request, op string, err error) {
 	slog.ErrorContext(r.Context(), op, "err", err)
 	writeError(w, http.StatusInternalServerError, "internal", "something went wrong")
+}
+
+func (rd *reader) listTopics(w http.ResponseWriter, r *http.Request) {
+	rows, err := rd.q.ListTopics(r.Context(), userFrom(r.Context()).ID)
+	if err != nil {
+		serverError(w, r, "list topics", err)
+		return
+	}
+	type topicDTO struct {
+		Name  string `json:"name"`
+		Count int64  `json:"count"`
+	}
+	out := make([]topicDTO, 0, len(rows))
+	for _, t := range rows {
+		out = append(out, topicDTO{Name: t.Topic, Count: t.ArticleCount})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"topics": out})
 }
