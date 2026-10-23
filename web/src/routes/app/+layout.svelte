@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import Logo from '#lib/components/logo.svelte';
+  import ModeToggle from '#lib/components/mode-toggle.svelte';
+  import Button from '#lib/components/ui/button.svelte';
   import { authClient } from '#lib/auth-client.ts';
   import type { LayoutProps } from './$types';
 
@@ -19,11 +21,8 @@
     <a href="/app"><Logo /></a>
     <div class="flex items-center gap-4 text-sm">
       <span class="text-muted-foreground">{data.user.email}</span>
-      <button
-        onclick={signOut}
-        class="rounded-full border border-input px-4 py-1.5 font-semibold"
-        >Sign out</button
-      >
+      <ModeToggle />
+      <Button variant="outline" size="sm" onclick={signOut}>Sign out</Button>
     </div>
   </header>
   <div class="mx-auto max-w-3xl px-6 py-10">{@render children()}</div>

@@ -11,8 +11,16 @@ type InboxItem = {
 };
 
 export const load: PageServerLoad = async ({ fetch }) => {
-  const res = await fetch('/api/v1/inbox');
+  let res: Response;
+  try {
+    res = await fetch('/api/v1/inbox');
+  } catch {
+    error(503, 'The Lookfar API is unreachable');
+  }
+  // The proxy turns a dead upstream into a network error or a 5xx.
+  if (res.status >= 500) error(503, 'The Lookfar API is unreachable');
   if (!res.ok) error(res.status, 'Could not load your inbox');
+
   const { items } = (await res.json()) as { items: InboxItem[] };
   return { items };
 };

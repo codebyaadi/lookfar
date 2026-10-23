@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { authClient } from '#lib/auth-client.ts';
+  import Button from '#lib/components/ui/button.svelte';
 
   let name = $state('');
   let email = $state('');
@@ -50,12 +51,9 @@
     class="w-full rounded-full border border-input bg-background px-4 py-2.5"
   />
   {#if error}<p class="text-sm text-destructive" role="alert">{error}</p>{/if}
-  <button
-    disabled={busy}
-    class="w-full rounded-full bg-primary py-2.5 font-semibold text-primary-foreground disabled:opacity-60"
-  >
+  <Button type="submit" disabled={busy} class="w-full">
     {busy ? 'Creating...' : 'Sign up'}
-  </button>
+  </Button>
   <p class="text-sm text-muted-foreground">
     Have an account? <a href="/signin" class="font-semibold text-brand"
       >Sign in</a
