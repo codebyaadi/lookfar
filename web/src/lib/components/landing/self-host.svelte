@@ -32,14 +32,14 @@ docker compose --profile app up -d`;
     </p>
 
     <div class="mt-14 grid gap-4 md:grid-cols-2">
-      <div class="rounded-3xl border bg-card/70 p-7 backdrop-blur">
+      <div class="min-w-0 rounded-3xl border bg-card/70 p-7 backdrop-blur">
         <h3 class="text-lg font-bold tracking-tight">Run it anywhere</h3>
         <pre
           class="mt-4 overflow-x-auto rounded-2xl bg-muted p-4 font-mono text-xs leading-relaxed"><code
             >{compose}</code
           ></pre>
       </div>
-      <div class="rounded-3xl border bg-card/70 p-7 backdrop-blur">
+      <div class="min-w-0 rounded-3xl border bg-card/70 p-7 backdrop-blur">
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-bold tracking-tight">Plug in your AI tools</h3>
           <span

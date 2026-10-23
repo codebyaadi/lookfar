@@ -5,6 +5,7 @@
   import ServerCrash from '@lucide/svelte/icons/server-crash';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Logo from '#lib/components/logo.svelte';
+  import Seo from '#lib/components/seo.svelte';
   import Button from '#lib/components/ui/button.svelte';
 
   const status = $derived(page.status);
@@ -33,9 +34,7 @@
   const Icon = $derived(copy.icon);
 </script>
 
-<svelte:head>
-  <title>{status} · Lookfar</title>
-</svelte:head>
+<Seo title={`${status}`} noindex />
 
 <main class="ambient grid min-h-screen place-items-center px-4">
   <div

@@ -1,5 +1,5 @@
 # Local development infrastructure. The Go services and SvelteKit app run on the
-# host (see Makefile); `docker compose --profile app up` also runs api + worker.
+# host (see Makefile); `docker compose --profile app up` also runs api, worker and web.
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -43,6 +43,25 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  web:
+    profiles: [app]
+    build:
+      context: .
+      target: web
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://lookfar:lookfar@postgres:5432/lookfar?sslmode=disable
+      API_URL: http://api:8080
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      ORIGIN: ${BETTER_AUTH_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
 
 volumes:
   pgdata:

@@ -1,3 +1,6 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /app
+Disallow: /api/
+
+Sitemap: https://lookfar.vercel.app/sitemap.xml

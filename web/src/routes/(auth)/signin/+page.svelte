@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import Seo from '#lib/components/seo.svelte';
   import { authClient } from '#lib/auth-client.ts';
   import Button from '#lib/components/ui/button.svelte';
 
@@ -18,6 +19,8 @@
     else await goto('/app');
   }
 </script>
+
+<Seo title="Sign in" noindex />
 
 <form onsubmit={submit} class="space-y-4">
   <h1 class="text-2xl font-extrabold tracking-tight">Sign in</h1>

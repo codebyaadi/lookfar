@@ -10,17 +10,48 @@
   import Pipeline from '#lib/components/landing/pipeline.svelte';
   import Problem from '#lib/components/landing/problem.svelte';
   import SelfHost from '#lib/components/landing/self-host.svelte';
+  import Seo from '#lib/components/seo.svelte';
+  import { site } from '#lib/site.ts';
   import type { PageProps } from './$types';
 
   let { data }: PageProps = $props();
+
+  // Escape "<" so the JSON can never close the script tag early.
+  const jsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': `${site.url}/#website`,
+        url: site.url,
+        name: site.name,
+        description: site.description,
+      },
+      {
+        '@type': 'SoftwareApplication',
+        '@id': `${site.url}/#software`,
+        name: site.name,
+        url: site.url,
+        description: site.description,
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Linux, macOS, Windows (Docker)',
+        isAccessibleForFree: true,
+        license: 'https://opensource.org/licenses/MIT',
+        codeRepository: site.github,
+        keywords: site.keywords.join(', '),
+        image: `${site.url}${site.ogImage}`,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      },
+    ],
+  }).replaceAll('<', '\\u003c');
+
+  const ldTag = ['<script type="application/ld+json">', jsonLd, '</', 'script>'].join('');
 </script>
 
+<Seo title={site.title} />
+
 <svelte:head>
-  <title>Lookfar · Agents that look far, so you don't have to</title>
-  <meta
-    name="description"
-    content="Self-hosted watcher agents. Describe what to watch, and Lookfar checks pages, feeds and repos on a schedule, reports only what matters, and asks before acting."
-  />
+  {@html ldTag}
 </svelte:head>
 
 <div class="ambient min-h-screen">

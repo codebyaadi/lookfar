@@ -20,7 +20,7 @@
   >
     <a href="/" aria-label="Lookfar home"><Logo /></a>
 
-    <ul class="hidden items-center gap-1 md:flex">
+    <ul class="hidden items-center gap-1 lg:flex">
       {#each links as l (l.href)}
         <li>
           <Button

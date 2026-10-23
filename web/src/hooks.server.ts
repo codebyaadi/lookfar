@@ -17,5 +17,11 @@ export const handle: Handle = async ({ event, resolve }) => {
   } catch (err) {
     console.warn('session lookup failed:', err);
   }
+  if (
+    event.url.pathname.startsWith('/app') ||
+    event.url.pathname.startsWith('/api')
+  ) {
+    event.setHeaders({ 'X-Robots-Tag': 'noindex, nofollow' });
+  }
   return svelteKitHandler({ event, resolve, auth, building });
 };
