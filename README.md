@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://lookfar.vercel.app">Website</a> ·
+  <a href="https://lookfar.codebyaadi.com">Website</a> ·
   <a href="PLAN.md">Roadmap</a> ·
   <a href="STYLE_GUIDE.md">Style guide</a> ·
   <a href="LICENSE">MIT license</a>

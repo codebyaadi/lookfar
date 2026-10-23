@@ -3,4 +3,4 @@ Allow: /
 Disallow: /app
 Disallow: /api/
 
-Sitemap: https://lookfar.vercel.app/sitemap.xml
+Sitemap: https://lookfar.codebyaadi.com/sitemap.xml
