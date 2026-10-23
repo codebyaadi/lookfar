@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from '#lib/components/ui/button.svelte';
 
-  const compose = `git clone https://github.com/codebyaadi/feedoku lookfar
+  const compose = `git clone https://github.com/codebyaadi/lookfar
 cd lookfar
 cp .env.example .env     # set BETTER_AUTH_SECRET
 docker compose --profile app up -d`;
@@ -56,7 +56,7 @@ docker compose --profile app up -d`;
 
     <div class="mt-8 flex justify-center">
       <Button
-        href="https://github.com/codebyaadi/feedoku"
+        href="https://github.com/codebyaadi/lookfar"
         variant="outline"
         target="_blank"
         rel="noreferrer">View on GitHub</Button

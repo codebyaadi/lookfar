@@ -23,7 +23,7 @@
       >
       <a href="#faq" class="text-muted-foreground hover:text-foreground">FAQ</a>
       <a
-        href="https://github.com/codebyaadi/feedoku"
+        href="https://github.com/codebyaadi/lookfar"
         target="_blank"
         rel="noreferrer"
         class="text-muted-foreground hover:text-foreground">GitHub</a
