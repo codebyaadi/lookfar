@@ -6,9 +6,6 @@ package store
 
 import (
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/pgvector/pgvector-go"
 )
 
 type Account struct {
@@ -27,59 +24,32 @@ type Account struct {
 	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
-type AiUsage struct {
-	Day          pgtype.Date `json:"day"`
-	Scope        string      `json:"scope"`
-	Requests     int32       `json:"requests"`
-	InputTokens  int64       `json:"inputTokens"`
-	OutputTokens int64       `json:"outputTokens"`
+type ApiToken struct {
+	ID         int64      `json:"id"`
+	UserID     string     `json:"userId"`
+	Name       string     `json:"name"`
+	TokenHash  []byte     `json:"tokenHash"`
+	Scopes     []string   `json:"scopes"`
+	LastUsedAt *time.Time `json:"lastUsedAt"`
+	RevokedAt  *time.Time `json:"revokedAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }
 
-type Article struct {
-	ID          int64       `json:"id"`
-	FeedID      int64       `json:"feedId"`
-	Guid        string      `json:"guid"`
-	Url         string      `json:"url"`
-	Title       string      `json:"title"`
-	Author      *string     `json:"author"`
-	PublishedAt time.Time   `json:"publishedAt"`
-	Summary     string      `json:"summary"`
-	ContentHtml string      `json:"contentHtml"`
-	ContentText string      `json:"contentText"`
-	ImageUrl    *string     `json:"imageUrl"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	SearchTsv   interface{} `json:"searchTsv"`
-}
-
-type ArticleAi struct {
-	ArticleID      int64           `json:"articleId"`
-	Tldr           string          `json:"tldr"`
-	KeyPoints      []byte          `json:"keyPoints"`
-	Topics         []string        `json:"topics"`
-	Entities       []byte          `json:"entities"`
-	Sentiment      *string         `json:"sentiment"`
-	ReadingMinutes int32           `json:"readingMinutes"`
-	Model          string          `json:"model"`
-	Status         string          `json:"status"`
-	Embedding      pgvector.Vector `json:"embedding"`
-	EmbedAttempts  int32           `json:"embedAttempts"`
-	UpdatedAt      time.Time       `json:"updatedAt"`
-}
-
-type Feed struct {
-	ID            int64      `json:"id"`
-	Url           string     `json:"url"`
-	SiteUrl       *string    `json:"siteUrl"`
-	Title         string     `json:"title"`
-	Description   string     `json:"description"`
-	Favicon       *string    `json:"favicon"`
-	Etag          *string    `json:"etag"`
-	LastModified  *string    `json:"lastModified"`
-	LastFetchedAt *time.Time `json:"lastFetchedAt"`
-	NextFetchAt   time.Time  `json:"nextFetchAt"`
-	ErrorCount    int32      `json:"errorCount"`
-	LastError     *string    `json:"lastError"`
-	CreatedAt     time.Time  `json:"createdAt"`
+type InboxItem struct {
+	ID         int64      `json:"id"`
+	UserID     string     `json:"userId"`
+	RunID      *int64     `json:"runId"`
+	Origin     string     `json:"origin"`
+	Kind       string     `json:"kind"`
+	Title      string     `json:"title"`
+	BodyMd     string     `json:"bodyMd"`
+	Payload    []byte     `json:"payload"`
+	Status     string     `json:"status"`
+	Response   []byte     `json:"response"`
+	Rating     int16      `json:"rating"`
+	ExpiresAt  *time.Time `json:"expiresAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	ResolvedAt *time.Time `json:"resolvedAt"`
 }
 
 type Job struct {
@@ -107,14 +77,6 @@ type Session struct {
 	UserId    string    `json:"userId"`
 }
 
-type Subscription struct {
-	UserID      string    `json:"userId"`
-	FeedID      int64     `json:"feedId"`
-	Folder      *string   `json:"folder"`
-	CustomTitle *string   `json:"customTitle"`
-	CreatedAt   time.Time `json:"createdAt"`
-}
-
 type User struct {
 	ID            string    `json:"id"`
 	Name          string    `json:"name"`
@@ -123,15 +85,6 @@ type User struct {
 	Image         *string   `json:"image"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
-}
-
-type UserArticle struct {
-	UserID    string     `json:"userId"`
-	ArticleID int64      `json:"articleId"`
-	ReadAt    *time.Time `json:"readAt"`
-	Saved     bool       `json:"saved"`
-	Rating    int16      `json:"rating"`
-	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
 type Verification struct {

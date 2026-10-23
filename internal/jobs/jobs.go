@@ -12,7 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/codebyaadi/feedoku/internal/store"
+	"github.com/codebyaadi/lookfar/internal/store"
 )
 
 type Handler func(ctx context.Context, job store.Job) error

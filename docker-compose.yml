@@ -1,18 +1,18 @@
-# Local development infrastructure. The Go services and Next.js app run on the
+# Local development infrastructure. The Go services and SvelteKit app run on the
 # host (see Makefile); `docker compose --profile app up` also runs api + worker.
 services:
   postgres:
     image: pgvector/pgvector:pg17
     environment:
-      POSTGRES_USER: feedoku
-      POSTGRES_PASSWORD: feedoku
-      POSTGRES_DB: feedoku
+      POSTGRES_USER: lookfar
+      POSTGRES_PASSWORD: lookfar
+      POSTGRES_DB: lookfar
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U feedoku -d feedoku"]
+      test: ["CMD-SHELL", "pg_isready -U lookfar -d lookfar"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -24,7 +24,7 @@ services:
       target: api
     env_file: .env
     environment:
-      DATABASE_URL: postgres://feedoku:feedoku@postgres:5432/feedoku?sslmode=disable
+      DATABASE_URL: postgres://lookfar:lookfar@postgres:5432/lookfar?sslmode=disable
       API_ADDR: ":8080"
     ports:
       - "8080:8080"
@@ -39,7 +39,7 @@ services:
       target: worker
     env_file: .env
     environment:
-      DATABASE_URL: postgres://feedoku:feedoku@postgres:5432/feedoku?sslmode=disable
+      DATABASE_URL: postgres://lookfar:lookfar@postgres:5432/lookfar?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy

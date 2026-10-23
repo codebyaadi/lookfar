@@ -23,15 +23,15 @@ type Config struct {
 	// signature on the session cookie.
 	AuthSecret string
 
-	// AllowPrivateFeeds disables the SSRF guard so local test feeds work.
+	// AllowPrivateSources disables the SSRF guard so local test sources work.
 	// Never enable in production.
-	AllowPrivateFeeds bool
+	AllowPrivateSources bool
 
 	// Worker
 	WorkerTick time.Duration
 
-	// AI providers. Everything is optional: with no keys the app runs as a
-	// plain reader and the worker skips enrichment.
+	// AI providers. Everything is optional: with no keys agents have no
+	// built-in model to fall back on.
 	GroqAPIKey        string
 	GroqModel         string
 	GroqBaseURL       string
@@ -42,8 +42,6 @@ type Config struct {
 	VoyageAPIKey      string
 	VoyageModel       string
 	VoyageBaseURL     string
-	EmbedBatch        int
-	EnrichConcurrency int
 }
 
 func (c Config) IsProduction() bool { return c.Env == "production" }
@@ -55,10 +53,10 @@ func Load() (Config, error) {
 		Env:         getenv("APP_ENV", "development"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		APIAddr:     getenv("API_ADDR", ":8080"),
-		CORSOrigins: splitList(getenv("CORS_ORIGINS", "http://localhost:3000")),
+		CORSOrigins: splitList(getenv("CORS_ORIGINS", "http://localhost:5173")),
 		AuthSecret:  os.Getenv("BETTER_AUTH_SECRET"),
 
-		AllowPrivateFeeds: getenv("ALLOW_PRIVATE_FEEDS", "false") == "true",
+		AllowPrivateSources: getenv("ALLOW_PRIVATE_SOURCES", "false") == "true",
 
 		GroqAPIKey:        os.Getenv("GROQ_API_KEY"),
 		GroqModel:         getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
@@ -82,12 +80,6 @@ func Load() (Config, error) {
 	c.WorkerTick = tick
 
 	if c.LLMRPM, err = getenvInt("LLM_RPM", 25); err != nil {
-		return c, err
-	}
-	if c.EmbedBatch, err = getenvInt("EMBED_BATCH", 16); err != nil {
-		return c, err
-	}
-	if c.EnrichConcurrency, err = getenvInt("ENRICH_CONCURRENCY", 2); err != nil {
 		return c, err
 	}
 

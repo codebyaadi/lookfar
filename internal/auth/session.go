@@ -1,6 +1,7 @@
-// Package auth authenticates API requests using better-auth sessions.
+// Package auth authenticates API requests using better-auth sessions or
+// personal API tokens.
 //
-// better-auth (running in the Next.js app) owns sign-up, sign-in and session
+// better-auth (running in the SvelteKit app) owns sign-up, sign-in and session
 // storage. It sets a signed cookie whose value is
 // url-encode("<token>.<base64 HMAC-SHA256(secret, token)>"). The Go API
 // verifies that signature with the shared BETTER_AUTH_SECRET and then looks
@@ -20,7 +21,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/codebyaadi/feedoku/internal/store"
+	"github.com/codebyaadi/lookfar/internal/store"
 )
 
 // Cookie names used by better-auth. The __Secure- variant is used when the
@@ -48,6 +49,8 @@ type User struct {
 
 type SessionQuerier interface {
 	GetSessionUser(ctx context.Context, token string) (store.GetSessionUserRow, error)
+	GetTokenUser(ctx context.Context, tokenHash []byte) (store.GetTokenUserRow, error)
+	TouchToken(ctx context.Context, id int64) error
 }
 
 type Authenticator struct {
@@ -59,8 +62,16 @@ func NewAuthenticator(secret string, db SessionQuerier) *Authenticator {
 	return &Authenticator{secret: []byte(secret), db: db}
 }
 
-// Authenticate resolves the user behind the request's session cookie.
+// Authenticate resolves the user behind the request: a bearer API token if
+// the Authorization header carries one, otherwise the session cookie.
 func (a *Authenticator) Authenticate(r *http.Request) (User, error) {
+	if h := r.Header.Get("Authorization"); h != "" {
+		return a.authenticateToken(r.Context(), h)
+	}
+	return a.authenticateSession(r)
+}
+
+func (a *Authenticator) authenticateSession(r *http.Request) (User, error) {
 	raw, ok := sessionCookie(r)
 	if !ok {
 		return User{}, ErrNoSession

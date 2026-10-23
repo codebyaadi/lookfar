@@ -19,7 +19,7 @@ help:
 	@echo "Develop"
 	@echo "  make api           run API with live reload (air)"
 	@echo "  make worker        run the background worker"
-	@echo "  make web           run the Next.js app"
+	@echo "  make web           run the SvelteKit app"
 	@echo "Quality"
 	@echo "  make generate      regenerate sqlc code"
 	@echo "  make check         gofmt + vet + test + web lint/typecheck"
@@ -70,7 +70,7 @@ worker:
 	go run ./cmd/worker
 
 web:
-	cd www && bun run dev
+	cd web && bun run dev
 
 ## --- quality --------------------------------------------------------------
 
@@ -85,7 +85,7 @@ check:
 	@test -z "$$(gofmt -l cmd internal)" || (echo "gofmt needed:"; gofmt -l cmd internal; exit 1)
 	go vet $(GO_PKGS)
 	go test $(GO_PKGS)
-	cd www && bun run lint && bun run typecheck
+	cd web && bun run lint && bun run check
 
 build:
 	CGO_ENABLED=0 go build -o bin/api ./cmd/api

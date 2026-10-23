@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/codebyaadi/feedoku/internal/store"
+	"github.com/codebyaadi/lookfar/internal/store"
 )
 
 const testSecret = "test-secret-please-change-0123456789"
@@ -47,10 +47,23 @@ func TestVerifySignedValue(t *testing.T) {
 	}
 }
 
-type fakeSessions map[string]store.GetSessionUserRow
+type fakeSessions struct {
+	sessions map[string]store.GetSessionUserRow
+	tokens   map[string]store.GetTokenUserRow
+}
+
+func (f fakeSessions) GetTokenUser(_ context.Context, hash []byte) (store.GetTokenUserRow, error) {
+	row, ok := f.tokens[string(hash)]
+	if !ok {
+		return row, pgx.ErrNoRows
+	}
+	return row, nil
+}
+
+func (f fakeSessions) TouchToken(context.Context, int64) error { return nil }
 
 func (f fakeSessions) GetSessionUser(_ context.Context, token string) (store.GetSessionUserRow, error) {
-	row, ok := f[token]
+	row, ok := f.sessions[token]
 	if !ok {
 		return row, pgx.ErrNoRows
 	}
@@ -58,7 +71,14 @@ func (f fakeSessions) GetSessionUser(_ context.Context, token string) (store.Get
 }
 
 func TestAuthenticate(t *testing.T) {
-	db := fakeSessions{"good-token": {ID: "u1", Email: "a@example.com", SessionExpiresAt: time.Now().Add(time.Hour)}}
+	apiToken, hash, err := NewToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := fakeSessions{
+		sessions: map[string]store.GetSessionUserRow{"good-token": {ID: "u1", Email: "a@example.com", SessionExpiresAt: time.Now().Add(time.Hour)}},
+		tokens:   map[string]store.GetTokenUserRow{string(hash): {TokenID: 1, ID: "u2", Email: "b@example.com"}},
+	}
 	a := NewAuthenticator(testSecret, db)
 
 	request := func(name, value string) *http.Request {
@@ -83,5 +103,20 @@ func TestAuthenticate(t *testing.T) {
 	}
 	if _, err := a.Authenticate(request("better-auth.session_token", SignValue("good-token", []byte("wrong")))); err != ErrInvalidSession {
 		t.Fatalf("forged cookie: err=%v", err)
+	}
+
+	bearer := func(h string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.Header.Set("Authorization", h)
+		return r
+	}
+	if u, err := a.Authenticate(bearer("Bearer " + apiToken)); err != nil || u.ID != "u2" {
+		t.Fatalf("valid api token: user=%+v err=%v", u, err)
+	}
+	if _, err := a.Authenticate(bearer("Bearer lf_unknown")); err != ErrInvalidSession {
+		t.Fatalf("unknown api token: err=%v", err)
+	}
+	if _, err := a.Authenticate(bearer("Bearer not-a-lookfar-token")); err != ErrInvalidSession {
+		t.Fatalf("foreign bearer: err=%v", err)
 	}
 }

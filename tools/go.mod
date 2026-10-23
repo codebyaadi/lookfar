@@ -1,4 +1,4 @@
-module github.com/codebyaadi/feedoku/tools
+module github.com/codebyaadi/lookfar/tools
 
 go 1.26.3
 

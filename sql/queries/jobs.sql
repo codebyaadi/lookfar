@@ -31,11 +31,3 @@ WHERE id = @id;
 
 -- name: AbandonJob :exec
 UPDATE jobs SET done_at = now(), locked_at = NULL, last_error = @last_error WHERE id = @id;
-
--- name: AddUsage :exec
-INSERT INTO ai_usage (day, scope, requests, input_tokens, output_tokens)
-VALUES (current_date, @scope, 1, @input_tokens, @output_tokens)
-ON CONFLICT (day, scope) DO UPDATE SET
-    requests = ai_usage.requests + 1,
-    input_tokens = ai_usage.input_tokens + EXCLUDED.input_tokens,
-    output_tokens = ai_usage.output_tokens + EXCLUDED.output_tokens;

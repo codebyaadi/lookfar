@@ -1,4 +1,4 @@
-// Package httpapi wires the HTTP routes for the Feedoku API.
+// Package httpapi wires the HTTP routes for the Lookfar API.
 package httpapi
 
 import (
@@ -12,9 +12,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
-	"github.com/codebyaadi/feedoku/internal/auth"
-	"github.com/codebyaadi/feedoku/internal/ingest"
-	"github.com/codebyaadi/feedoku/internal/store"
+	"github.com/codebyaadi/lookfar/internal/auth"
+	"github.com/codebyaadi/lookfar/internal/store"
 )
 
 type Pinger interface {
@@ -25,9 +24,8 @@ type Deps struct {
 	Auth        *auth.Authenticator
 	DB          Pinger
 	Queries     *store.Queries
-	Ingest      *ingest.Service
 	CORSOrigins []string
-	// AIEnabled tells the UI whether summaries are being generated.
+	// AIEnabled tells the UI whether a built-in LLM provider is configured.
 	AIEnabled bool
 }
 
@@ -40,7 +38,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   d.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -50,7 +48,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(requireUser(d.Auth))
 		r.Get("/me", getMe(d.AIEnabled))
-		(&reader{q: d.Queries, ingest: d.Ingest}).routes(r)
+		(&inbox{q: d.Queries}).routes(r)
 	})
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {

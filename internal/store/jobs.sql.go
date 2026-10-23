@@ -23,26 +23,6 @@ func (q *Queries) AbandonJob(ctx context.Context, arg AbandonJobParams) error {
 	return err
 }
 
-const addUsage = `-- name: AddUsage :exec
-INSERT INTO ai_usage (day, scope, requests, input_tokens, output_tokens)
-VALUES (current_date, $1, 1, $2, $3)
-ON CONFLICT (day, scope) DO UPDATE SET
-    requests = ai_usage.requests + 1,
-    input_tokens = ai_usage.input_tokens + EXCLUDED.input_tokens,
-    output_tokens = ai_usage.output_tokens + EXCLUDED.output_tokens
-`
-
-type AddUsageParams struct {
-	Scope        string `json:"scope"`
-	InputTokens  int64  `json:"inputTokens"`
-	OutputTokens int64  `json:"outputTokens"`
-}
-
-func (q *Queries) AddUsage(ctx context.Context, arg AddUsageParams) error {
-	_, err := q.db.Exec(ctx, addUsage, arg.Scope, arg.InputTokens, arg.OutputTokens)
-	return err
-}
-
 const claimJob = `-- name: ClaimJob :one
 UPDATE jobs SET locked_at = now(), attempts = attempts + 1
 WHERE id = (

@@ -1,4 +1,4 @@
-// Command worker runs Feedoku's background jobs (feed polling, AI enrichment).
+// Command worker runs Lookfar's background jobs.
 package main
 
 import (
@@ -8,18 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/codebyaadi/feedoku/internal/config"
-	"github.com/codebyaadi/feedoku/internal/enrich"
-	"github.com/codebyaadi/feedoku/internal/feed"
-	"github.com/codebyaadi/feedoku/internal/ingest"
-	"github.com/codebyaadi/feedoku/internal/jobs"
-	"github.com/codebyaadi/feedoku/internal/llm"
-	"github.com/codebyaadi/feedoku/internal/logging"
-	"github.com/codebyaadi/feedoku/internal/postgres"
-	"github.com/codebyaadi/feedoku/internal/store"
-	"github.com/codebyaadi/feedoku/internal/worker"
+	"github.com/codebyaadi/lookfar/internal/config"
+	"github.com/codebyaadi/lookfar/internal/logging"
+	"github.com/codebyaadi/lookfar/internal/postgres"
+	"github.com/codebyaadi/lookfar/internal/worker"
 )
 
 func main() {
@@ -45,30 +38,5 @@ func run() error {
 	}
 	defer pool.Close()
 
-	q := store.New(pool)
-	opts := worker.Options{
-		DB:     pool,
-		Poller: ingest.New(q, feed.NewFetcher(cfg.AllowPrivateFeeds)),
-		Tick:   cfg.WorkerTick,
-	}
-
-	chain := llm.NewChain(
-		&llm.Provider{Name: "groq", BaseURL: cfg.GroqBaseURL, APIKey: cfg.GroqAPIKey, Model: cfg.GroqModel, RPM: cfg.LLMRPM,
-			Extra: map[string]any{"reasoning_effort": "low"}},
-		&llm.Provider{Name: "openrouter", BaseURL: cfg.OpenRouterBaseURL, APIKey: cfg.OpenRouterAPIKey, Model: cfg.OpenRouterModel, RPM: min(cfg.LLMRPM, 18)},
-	)
-	if chain.Enabled() {
-		runner := jobs.NewRunner(q, 2*time.Second)
-		runner.Register(enrich.KindEnrichArticle, enrich.New(q, chain).Handle)
-		opts.Jobs, opts.JobConcurrency = runner, cfg.EnrichConcurrency
-	} else {
-		slog.Warn("no LLM provider configured (GROQ_API_KEY / OPENROUTER_API_KEY): summaries disabled")
-	}
-	if embedder := enrich.NewEmbedder(q, llm.NewVoyage(cfg.VoyageBaseURL, cfg.VoyageAPIKey, cfg.VoyageModel, 1024), cfg.EmbedBatch); embedder.Enabled() {
-		opts.Embedder, opts.EmbedBatch = embedder, cfg.EmbedBatch
-	} else {
-		slog.Warn("VOYAGE_API_KEY not set: embeddings disabled")
-	}
-
-	return worker.New(opts).Run(ctx)
+	return worker.New(worker.Options{DB: pool, Tick: cfg.WorkerTick}).Run(ctx)
 }

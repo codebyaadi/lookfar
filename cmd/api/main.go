@@ -1,4 +1,4 @@
-// Command api serves the Feedoku HTTP API.
+// Command api serves the Lookfar HTTP API.
 package main
 
 import (
@@ -12,14 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/codebyaadi/feedoku/internal/auth"
-	"github.com/codebyaadi/feedoku/internal/config"
-	"github.com/codebyaadi/feedoku/internal/feed"
-	"github.com/codebyaadi/feedoku/internal/httpapi"
-	"github.com/codebyaadi/feedoku/internal/ingest"
-	"github.com/codebyaadi/feedoku/internal/logging"
-	"github.com/codebyaadi/feedoku/internal/postgres"
-	"github.com/codebyaadi/feedoku/internal/store"
+	"github.com/codebyaadi/lookfar/internal/auth"
+	"github.com/codebyaadi/lookfar/internal/config"
+	"github.com/codebyaadi/lookfar/internal/httpapi"
+	"github.com/codebyaadi/lookfar/internal/logging"
+	"github.com/codebyaadi/lookfar/internal/postgres"
+	"github.com/codebyaadi/lookfar/internal/store"
 )
 
 func main() {
@@ -49,7 +47,6 @@ func run() error {
 	router := httpapi.NewRouter(httpapi.Deps{
 		Auth:        auth.NewAuthenticator(cfg.AuthSecret, queries),
 		Queries:     queries,
-		Ingest:      ingest.New(queries, feed.NewFetcher(cfg.AllowPrivateFeeds)),
 		DB:          pool,
 		CORSOrigins: cfg.CORSOrigins,
 		AIEnabled:   cfg.AIEnabled(),

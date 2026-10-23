@@ -12,15 +12,15 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg17
         env:
-          POSTGRES_USER: feedoku
-          POSTGRES_PASSWORD: feedoku
-          POSTGRES_DB: feedoku
+          POSTGRES_USER: lookfar
+          POSTGRES_PASSWORD: lookfar
+          POSTGRES_DB: lookfar
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U feedoku" --health-interval 5s
+          --health-cmd "pg_isready -U lookfar" --health-interval 5s
           --health-timeout 3s --health-retries 10
     env:
-      DATABASE_URL: postgres://feedoku:feedoku@localhost:5432/feedoku?sslmode=disable
+      DATABASE_URL: postgres://lookfar:lookfar@localhost:5432/lookfar?sslmode=disable
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -43,15 +43,16 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: www
+        working-directory: web
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run format
-      - run: bun run typecheck
+      - run: bun run check
       - run: bun run build
         env:
           BETTER_AUTH_SECRET: ci-build-secret-not-used-at-runtime
           BETTER_AUTH_URL: http://localhost:3000
+          DATABASE_URL: postgres://lookfar:lookfar@localhost:5432/lookfar
