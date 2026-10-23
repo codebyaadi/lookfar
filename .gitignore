@@ -3,3 +3,5 @@ bin/
 tmp/
 build-errors.log
 .vscode/
+.vercel
+.env*

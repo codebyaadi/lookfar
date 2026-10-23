@@ -1,0 +1,10 @@
+node_modules
+web/node_modules
+web/build
+web/.svelte-kit
+web/.vercel
+web/.env
+web/.env.local
+bin
+tmp
+.env
