@@ -8,10 +8,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/codebyaadi/lookfar/internal/config"
+	"github.com/codebyaadi/lookfar/internal/jobs"
 	"github.com/codebyaadi/lookfar/internal/logging"
 	"github.com/codebyaadi/lookfar/internal/postgres"
+	"github.com/codebyaadi/lookfar/internal/source"
+	"github.com/codebyaadi/lookfar/internal/store"
 	"github.com/codebyaadi/lookfar/internal/worker"
 )
 
@@ -38,5 +42,16 @@ func run() error {
 	}
 	defer pool.Close()
 
-	return worker.New(worker.Options{DB: pool, Tick: cfg.WorkerTick}).Run(ctx)
+	q := store.New(pool)
+	sources := source.NewService(pool, source.NewChecker(source.NewFetcher(cfg.AllowPrivateSources), cfg.GitHubToken))
+	runner := jobs.NewRunner(q, 2*time.Second)
+	runner.Register(source.JobKind, sources.Handle)
+
+	return worker.New(worker.Options{
+		DB:             pool,
+		Tick:           cfg.WorkerTick,
+		Jobs:           runner,
+		JobConcurrency: cfg.CheckConcurrency,
+		Scheduler:      sources,
+	}).Run(ctx)
 }

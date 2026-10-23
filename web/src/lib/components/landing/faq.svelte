@@ -4,7 +4,7 @@
   const items = [
     {
       q: 'Is Lookfar ready to use today?',
-      a: 'It is early. Accounts, sign-in, API tokens and the inbox shell work now. Sources, the agent runtime, approvals, memory and MCP are being built in that order, and every feature on this page is labelled Live or Coming soon.',
+      a: 'It is early. Accounts, API tokens, and watching pages, feeds and GitHub releases with diffs work now. The agent runtime, approvals, memory and MCP are being built in that order, and every feature on this page is labelled Live or Coming soon.',
     },
     {
       q: 'What will it cost to run?',

@@ -42,6 +42,13 @@ type Config struct {
 	VoyageAPIKey      string
 	VoyageModel       string
 	VoyageBaseURL     string
+
+	// GitHubToken is optional: it raises the GitHub API rate limit for release
+	// sources. A token with no scopes is enough for public repositories.
+	GitHubToken string
+
+	// CheckConcurrency is how many source checks the worker runs at once.
+	CheckConcurrency int
 }
 
 func (c Config) IsProduction() bool { return c.Env == "production" }
@@ -67,6 +74,8 @@ func Load() (Config, error) {
 		VoyageAPIKey:      os.Getenv("VOYAGE_API_KEY"),
 		VoyageModel:       getenv("VOYAGE_MODEL", "voyage-4-lite"),
 		VoyageBaseURL:     getenv("VOYAGE_BASE_URL", "https://api.voyageai.com/v1"),
+
+		GitHubToken: os.Getenv("GITHUB_TOKEN"),
 	}
 
 	if err := c.LogLevel.UnmarshalText([]byte(getenv("LOG_LEVEL", "info"))); err != nil {
@@ -80,6 +89,9 @@ func Load() (Config, error) {
 	c.WorkerTick = tick
 
 	if c.LLMRPM, err = getenvInt("LLM_RPM", 25); err != nil {
+		return c, err
+	}
+	if c.CheckConcurrency, err = getenvInt("CHECK_CONCURRENCY", 4); err != nil {
 		return c, err
 	}
 

@@ -31,3 +31,9 @@ WHERE id = @id;
 
 -- name: AbandonJob :exec
 UPDATE jobs SET done_at = now(), locked_at = NULL, last_error = @last_error WHERE id = @id;
+
+-- name: EnqueueJob :exec
+-- Idempotent: a repeated dedupe_key is ignored.
+INSERT INTO jobs (kind, payload, dedupe_key)
+VALUES (@kind, @payload, @dedupe_key)
+ON CONFLICT (dedupe_key) DO NOTHING;

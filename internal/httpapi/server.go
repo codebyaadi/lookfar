@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/codebyaadi/lookfar/internal/auth"
+	"github.com/codebyaadi/lookfar/internal/source"
 	"github.com/codebyaadi/lookfar/internal/store"
 )
 
@@ -24,6 +25,7 @@ type Deps struct {
 	Auth        *auth.Authenticator
 	DB          Pinger
 	Queries     *store.Queries
+	Sources     *source.Service
 	CORSOrigins []string
 	// AIEnabled tells the UI whether a built-in LLM provider is configured.
 	AIEnabled bool
@@ -49,6 +51,7 @@ func NewRouter(d Deps) http.Handler {
 		r.Use(requireUser(d.Auth))
 		r.Get("/me", getMe(d.AIEnabled))
 		(&inbox{q: d.Queries}).routes(r)
+		(&sources{q: d.Queries, svc: d.Sources}).routes(r)
 	})
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {

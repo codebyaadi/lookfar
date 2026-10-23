@@ -1,8 +1,11 @@
 <script lang="ts">
+  import Seo from '#lib/components/seo.svelte';
   import type { PageProps } from './$types';
 
   let { data }: PageProps = $props();
 </script>
+
+<Seo title="Inbox" noindex />
 
 <h1 class="text-3xl font-extrabold tracking-tighter">Inbox</h1>
 

@@ -17,6 +17,7 @@ import (
 	"github.com/codebyaadi/lookfar/internal/httpapi"
 	"github.com/codebyaadi/lookfar/internal/logging"
 	"github.com/codebyaadi/lookfar/internal/postgres"
+	"github.com/codebyaadi/lookfar/internal/source"
 	"github.com/codebyaadi/lookfar/internal/store"
 )
 
@@ -47,6 +48,7 @@ func run() error {
 	router := httpapi.NewRouter(httpapi.Deps{
 		Auth:        auth.NewAuthenticator(cfg.AuthSecret, queries),
 		Queries:     queries,
+		Sources:     source.NewService(pool, source.NewChecker(source.NewFetcher(cfg.AllowPrivateSources), cfg.GitHubToken)),
 		DB:          pool,
 		CORSOrigins: cfg.CORSOrigins,
 		AIEnabled:   cfg.AIEnabled(),

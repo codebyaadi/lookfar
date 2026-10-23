@@ -14,7 +14,7 @@
   <a href="LICENSE">MIT license</a>
 </p>
 
-> **Early days.** Lookfar is being built in the open, phase by phase. Accounts, sign-in, personal API tokens and the inbox shell work today. Sources, the agent runtime, approvals, memory and MCP are next, in that order. Every feature below is labelled **Live** or **Coming soon**, and [PLAN.md](PLAN.md) has the full design.
+> **Early days.** Lookfar is being built in the open, phase by phase. Accounts, personal API tokens, and watching pages, RSS feeds and GitHub releases (with stored snapshots and readable diffs) work today. The agent runtime, approvals, memory and MCP are next, in that order. Every feature below is labelled **Live** or **Coming soon**, and [PLAN.md](PLAN.md) has the full design.
 
 ---
 
@@ -22,7 +22,7 @@
 
 Page monitors fire on every cookie banner. AI agents re-read the web on every run and burn tokens on nothing. And agents that can act on their own are hard to trust. Lookfar is built around fixing those three problems:
 
-- **No change, no tokens.** Every run starts with a free, deterministic check: fetch, normalise, hash, diff. A small model triages only what changed, and your main model runs only when it likely matters.
+- **No change, no tokens.** Every run starts with a free, deterministic check: fetch, normalise, hash, diff (this part is live today). A small model triages only what changed, and your main model runs only when it likely matters.
 - **Quiet by default.** Agents report above a significance threshold you set. One useful alert beats twenty digests.
 - **Read freely, act with permission.** Anything with side effects (email, webhooks) waits in your inbox with the exact payload shown. Nothing happens without a yes.
 - **Show the work.** Every run keeps a step-by-step timeline of what was fetched, what changed, what the model saw, which tools ran, and what each step cost.
@@ -36,7 +36,8 @@ Page monitors fire on every cookie banner. AI agents re-read the web on every ru
 | **Live** | Personal API tokens | `Authorization: Bearer lf_…`, stored as a SHA-256 hash and revocable. A management UI is coming. |
 | **Live** | Inbox API and shell | `GET /v1/inbox` and the `/app` inbox page, ready for reports, alerts, questions and approvals. |
 | **Live** | Job queue | Postgres `FOR UPDATE SKIP LOCKED` queue with retries and rate-limit deferral. |
-| Coming soon | Sources and change detection | RSS and Atom, web pages (readable text or a CSS selector, with noise filters), GitHub releases and JSON endpoints, with snapshots and diffs. |
+| **Live** | Sources and change detection | Web pages (visible text or a CSS selector), RSS and Atom feeds, and GitHub releases (falling back to tags). Text is normalised and noise is ignored: cookie banners, hidden elements, "5 minutes ago" and clock text, plus your own selectors and regex rules. Each real change is stored as a snapshot with a line diff, viewable unified or side by side. |
+| **Live** | Scheduler | The worker queues due checks as jobs. Failures are recorded and retried with exponential backoff, and one check never runs twice at once for the same source. |
 | Coming soon | Watcher agents | A mission, sources, a trigger, tools and a budget. Triage, then act, then report. |
 | Coming soon | Approvals inbox | Approve, deny or edit before anything outward-facing happens, with push and email notifications. |
 | Coming soon | Memory and MCP | Hybrid search over everything agents read and write, exposed to Claude, Cursor and others at `/mcp`. |
@@ -62,19 +63,19 @@ SvelteKit 3 and Svelte 5 (runes) · Tailwind v4 · better-auth · bun · oxlint 
 
 ```
 cmd/
-  api/        HTTP API (chi): /v1/me, /v1/inbox, token and session auth
-  worker/     Background worker and job runner
+  api/        HTTP API (chi): /v1/me, /v1/inbox, /v1/sources, token and session auth
+  worker/     Scheduler and job runner (runs source checks)
 internal/
   auth/       better-auth session cookie and API-token authentication
   httpapi/    routes and handlers
   jobs/       Postgres job queue
   llm/        OpenAI-compatible provider chain, rate limiter, Voyage client
-  source/     SSRF-guarded fetcher, feed parser, discovery and extraction
+  source/     SSRF-guarded fetcher, page/feed/GitHub checkers, normalisation, diff engine
   store/      sqlc-generated queries
 sql/
   schema/     goose migrations
   queries/    sqlc queries
-web/          SvelteKit app: landing page, auth, inbox, API proxy
+web/          SvelteKit app: landing page, auth, inbox, sources and diff viewer, API proxy
 ```
 
 better-auth runs inside SvelteKit and owns sign-up and sessions. The Go API verifies the signed `better-auth.session_token` cookie with the shared `BETTER_AUTH_SECRET` and looks the session up in Postgres, or accepts a personal API token. The browser talks to `/api/v1/*` on the SvelteKit origin, which proxies to the Go API.
@@ -104,7 +105,9 @@ make web      # SvelteKit on :5173
 | Web | http://localhost:5173 |
 | API | http://localhost:8080 (`/healthz`) |
 
-Open http://localhost:5173/signup, create the first account, and you land on `/app`, an empty inbox served from the Go API.
+Open http://localhost:5173/signup, create the first account, and you land on `/app`. Open **Sources**, add a page, a feed or a GitHub repo, and Lookfar takes a baseline snapshot straight away. The worker then re-checks it on its schedule and stores a diff whenever the content really changes.
+
+To try it on a page you control, serve one locally and set `ALLOW_PRIVATE_SOURCES=true` in `.env` (local testing only: it switches off the guard that blocks private addresses).
 
 > If port 5432 is already taken, set `POSTGRES_PORT=5433` in `.env` and update `DATABASE_URL` to match. Without `make` (for example on Windows), run `go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" up` and `go run ./cmd/api`.
 
@@ -119,7 +122,18 @@ Open http://localhost:5173/signup, create the first account, and you land on `/a
 | `make check` | gofmt, vet, Go tests, oxlint and svelte-check |
 | `cd web && bun run format:fix` | Format the frontend with oxfmt |
 
-CI runs gofmt, a sqlc drift check, vet, the Go tests, a migration up, down and up cycle against Postgres, the frontend lint, format, type check and build.
+The integration tests (sources, the HTTP API) need a migrated Postgres and `DATABASE_URL`; without one they skip themselves.
+
+Settings you may want for sources, all optional:
+
+| Setting | What it does |
+| --- | --- |
+| `GITHUB_TOKEN` | No scopes needed. Raises the GitHub API rate limit for release sources |
+| `CHECK_CONCURRENCY` | Source checks the worker runs at once (default 4) |
+| `WORKER_TICK` | How often the worker looks for due checks (default 30s) |
+| `ALLOW_PRIVATE_SOURCES` | Allow watching private and loopback addresses. Local testing only |
+
+CI runs gofmt, a sqlc drift check, vet, a migration up, down and up cycle against Postgres, the Go tests (including the integration tests), the frontend lint, format, type check and build.
 
 ## Self-host it
 
@@ -144,8 +158,8 @@ The web app can also be deployed to Vercel (`adapter-vercel` is used automatical
 | Phase | Deliverable | Status |
 | --- | --- | --- |
 | 0. Foundations | Rename, SvelteKit app, fresh migrations, API-token auth, landing page | Done |
-| 1. Sources and change detection | RSS, page and GitHub sources, snapshots, diffs, scheduler, diff viewer | Next |
-| 2. Agent runtime | Tool calling, triage then act, budgets, run timeline, evals | Planned |
+| 1. Sources and change detection | RSS, page and GitHub sources, snapshots, diffs, scheduler, diff viewer | Done |
+| 2. Agent runtime | Tool calling, triage then act, budgets, run timeline, evals | Next |
 | 3. Inbox and notifications | `ask_user`, gated email and webhook, push, resume after answer | Planned |
 | 4. Memory and MCP | Embeddings, hybrid search, MCP server with scoped tokens | Planned |
 | 5. Polish and ship | One-file compose, backups doc, invites, rate limits | Planned |

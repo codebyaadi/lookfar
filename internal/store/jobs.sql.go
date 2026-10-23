@@ -86,6 +86,24 @@ func (q *Queries) DeferJob(ctx context.Context, arg DeferJobParams) error {
 	return err
 }
 
+const enqueueJob = `-- name: EnqueueJob :exec
+INSERT INTO jobs (kind, payload, dedupe_key)
+VALUES ($1, $2, $3)
+ON CONFLICT (dedupe_key) DO NOTHING
+`
+
+type EnqueueJobParams struct {
+	Kind      string  `json:"kind"`
+	Payload   []byte  `json:"payload"`
+	DedupeKey *string `json:"dedupeKey"`
+}
+
+// Idempotent: a repeated dedupe_key is ignored.
+func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) error {
+	_, err := q.db.Exec(ctx, enqueueJob, arg.Kind, arg.Payload, arg.DedupeKey)
+	return err
+}
+
 const retryJob = `-- name: RetryJob :exec
 UPDATE jobs SET locked_at = NULL, last_error = $1,
     run_at = now() + make_interval(secs => $2::int)

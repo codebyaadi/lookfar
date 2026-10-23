@@ -77,6 +77,37 @@ type Session struct {
 	UserId    string    `json:"userId"`
 }
 
+type Snapshot struct {
+	ID           int64     `json:"id"`
+	SourceID     int64     `json:"sourceId"`
+	FetchedAt    time.Time `json:"fetchedAt"`
+	ContentHash  string    `json:"contentHash"`
+	Content      string    `json:"content"`
+	Diff         []byte    `json:"diff"`
+	AddedLines   int32     `json:"addedLines"`
+	RemovedLines int32     `json:"removedLines"`
+	SizeBytes    int32     `json:"sizeBytes"`
+}
+
+type Source struct {
+	ID            int64      `json:"id"`
+	UserID        string     `json:"userId"`
+	Kind          string     `json:"kind"`
+	Url           string     `json:"url"`
+	Title         string     `json:"title"`
+	Config        []byte     `json:"config"`
+	IntervalSecs  int32      `json:"intervalSecs"`
+	NextCheckAt   time.Time  `json:"nextCheckAt"`
+	Etag          *string    `json:"etag"`
+	LastModified  *string    `json:"lastModified"`
+	LastCheckedAt *time.Time `json:"lastCheckedAt"`
+	LastChangedAt *time.Time `json:"lastChangedAt"`
+	ErrorCount    int32      `json:"errorCount"`
+	LastError     *string    `json:"lastError"`
+	Paused        bool       `json:"paused"`
+	CreatedAt     time.Time  `json:"createdAt"`
+}
+
 type User struct {
 	ID            string    `json:"id"`
 	Name          string    `json:"name"`

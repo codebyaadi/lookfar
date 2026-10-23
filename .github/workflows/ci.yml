@@ -31,12 +31,13 @@ jobs:
       - name: sqlc code is up to date
         run: make generate && git diff --exit-code internal/store
       - run: go vet ./cmd/... ./internal/...
-      - run: go test ./cmd/... ./internal/...
       - name: migrations apply cleanly (up, down, up)
         run: |
           go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" up
           go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" reset
           go tool -modfile=tools/go.mod goose -dir sql/schema postgres "$DATABASE_URL" up
+      - name: tests (integration tests use the migrated database)
+        run: go test ./cmd/... ./internal/...
       - run: make build
 
   web:

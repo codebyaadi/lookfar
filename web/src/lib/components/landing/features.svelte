@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Bell from '@lucide/svelte/icons/bell';
+  import GitCompare from '@lucide/svelte/icons/git-compare';
   import Brain from '@lucide/svelte/icons/brain';
   import ListChecks from '@lucide/svelte/icons/list-checks';
   import Plug from '@lucide/svelte/icons/plug';
@@ -16,7 +16,7 @@
     {
       icon: ListChecks,
       title: 'Approvals inbox',
-      body: 'Reports, alerts, questions and approvals in one place, with keyboard shortcuts. Approvals show the exact recipient and payload.',
+      body: 'Reports, alerts, questions and approvals in one place, with push and email notifications. Approvals show the exact recipient and payload.',
       live: false,
     },
     {
@@ -38,10 +38,10 @@
       live: false,
     },
     {
-      icon: Bell,
-      title: 'Push and email, quietly',
-      body: 'Installable PWA with web push, plus SMTP email. Agents only notify above the significance threshold you set.',
-      live: false,
+      icon: GitCompare,
+      title: 'Change detection that ignores noise',
+      body: 'Watch pages, RSS feeds and GitHub releases. Text is normalised, cookie banners and "5 minutes ago" are ignored, and every change is stored as a readable diff.',
+      live: true,
     },
   ];
 </script>

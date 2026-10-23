@@ -31,3 +31,15 @@ func internalError(w http.ResponseWriter, r *http.Request, msg string, err error
 	slog.ErrorContext(r.Context(), msg, "err", err)
 	writeError(w, http.StatusInternalServerError, "internal", "something went wrong")
 }
+
+// decodeJSON reads a small JSON request body into v, rejecting unknown fields.
+func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body: "+err.Error())
+		return false
+	}
+	return true
+}

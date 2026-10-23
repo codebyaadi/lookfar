@@ -295,6 +295,18 @@ Each phase ends in a working, demoable app.
 | **4. Memory & MCP** | Documents + chunks + embeddings, hybrid search, `search_memory` tool, memory page + ⌘K, MCP server with scoped tokens, external `inbox_*` tools, REST inbox API | Claude Desktop connects to `/mcp`, finds last week's reports, and asks you for an approval that you answer in the inbox |
 | **5. Polish & ship** | Landing page, one-file compose (postgres + api + worker + web), backups doc, invites, rate limits, empty/error states, tests, docs | Fresh VPS → `docker compose up` → working Lookfar instance in under 10 minutes |
 
+### Status
+
+- **Phase 0: done** (2026-10-23).
+- **Phase 1: done** (2026-10-23). As built, with the differences from the plan above:
+  - Source kinds are `page`, `rss` and `github`. `json` (JSONPath) sources are deferred.
+  - Every kind is normalised to lines of text, so one line-diff engine serves all of them. A new snapshot is stored only when content changes, and the first one is the baseline.
+  - GitHub sources read the releases API and fall back to the `tags.atom` feed for repositories that only tag (the REST tags endpoint is not ordered by recency).
+  - Page noise filters: a default ignore list (scripts, hidden elements, dialogs, cookie and consent banners), per-source ignore selectors and regex lines, timestamps stripped unless opted in, and a minimum change size.
+  - Checks run as `check_source` jobs queued by a scheduler in the worker. Failures back off exponentially (capped at a day). The compare-and-store step runs under a per-source advisory lock so overlapping checks cannot store duplicate snapshots.
+  - "Check now" and the first check after creation run inline in the API request. Manual checks are limited to one per 15 seconds per source, and a user can watch at most 100 sources.
+  - Not yet built: a selector-picker preview, and a stored `diff` for sources whose snapshots exceed the size cap (content beyond 512 KB is truncated).
+
 **Later:** Telegram/ntfy/Slack, policy-based auto-approval, headless-browser sources, user-defined HTTP tools, newsletter inbox source, hosted multi-tenant version.
 
 ---

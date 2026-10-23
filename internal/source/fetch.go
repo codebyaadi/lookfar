@@ -1,4 +1,5 @@
-// Package feed fetches, discovers and parses RSS/Atom feeds.
+// Package source fetches, parses and diffs the things Lookfar watches: RSS and
+// Atom feeds, web pages and GitHub releases.
 package source
 
 import (
@@ -89,9 +90,26 @@ type Response struct {
 	ContentType  string
 }
 
+// GetOptions tunes a request. Zero values mean defaults.
+type GetOptions struct {
+	ETag         string
+	LastModified string
+	// Accept overrides the default Accept header.
+	Accept string
+	// Header adds extra request headers (e.g. Authorization).
+	Header http.Header
+}
+
+const defaultAccept = "application/atom+xml, application/rss+xml, application/xml, text/xml, text/html;q=0.8, */*;q=0.5"
+
 // Get fetches rawURL. Pass the stored etag/lastModified for a conditional
 // request; a 304 yields ErrNotModified.
 func (f *Fetcher) Get(ctx context.Context, rawURL, etag, lastModified string) (*Response, error) {
+	return f.Do(ctx, rawURL, GetOptions{ETag: etag, LastModified: lastModified})
+}
+
+// Do is Get with options.
+func (f *Fetcher) Do(ctx context.Context, rawURL string, opts GetOptions) (*Response, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url: %w", err)
@@ -103,13 +121,22 @@ func (f *Fetcher) Get(ctx context.Context, rawURL, etag, lastModified string) (*
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "application/atom+xml, application/rss+xml, application/xml, text/xml, text/html;q=0.8, */*;q=0.5")
-	if etag != "" {
-		req.Header.Set("If-None-Match", etag)
+	for k, vs := range opts.Header {
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
 	}
-	if lastModified != "" {
-		req.Header.Set("If-Modified-Since", lastModified)
+	req.Header.Set("User-Agent", userAgent)
+	accept := opts.Accept
+	if accept == "" {
+		accept = defaultAccept
+	}
+	req.Header.Set("Accept", accept)
+	if opts.ETag != "" {
+		req.Header.Set("If-None-Match", opts.ETag)
+	}
+	if opts.LastModified != "" {
+		req.Header.Set("If-Modified-Since", opts.LastModified)
 	}
 
 	resp, err := f.client.Do(req)
