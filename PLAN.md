@@ -1,185 +1,329 @@
-# Feedoku 2.0 — Redesign Plan
+# Lookfar: plan
 
-AI-native RSS reader: subscribe to feeds, and let AI summarize, rank, dedupe and brief you — then ask questions across everything you follow.
+> **Lookfar** (formerly Feedoku): agents that look far, so you don't have to.
+> The previous AI RSS reader plan is in git history (`git show 4f5e775:PLAN.md`).
 
----
-
-## 1. Where the project is today
-
-| Area | State |
-|---|---|
-| **Go backend** | Does not compile. `cmd/main.go` is missing (Makefile, Dockerfile and `.air.toml` all point at it). `internal/auth` is imported but doesn't exist. `sql/queries/users.sql` targets a `users` table with `password_hash`/`api_key` columns that the schema doesn't have, and handlers call `GetPostsForUser` / `models.ConvertDatabase*` that were never written. |
-| **Database** | One migration: better-auth tables (`user`, `session`, `account`, `verification`). No feeds, posts or subscriptions tables. |
-| **Feed fetching** | Only an `RSSFeed` XML struct and a date parser. No scraper, no Atom support. |
-| **Kafka** | Mentioned in README, never implemented (just a start script). |
-| **Redis** | Client init only, unused. |
-| **Frontend** | Next 15 + React 19 + Tailwind v4 + shadcn. Landing page, sign-in/sign-up with better-auth (email/password). No app shell, no reader, middleware is a no-op. Sign-in copy still says "UI component framework". |
-
-**Conclusion:** the only reusable parts are the frontend scaffold (Next/Tailwind/shadcn/better-auth) and the auth schema. The backend is effectively a rewrite.
+**One line:** agents you can leave running. You describe what to watch in plain language. Agents check pages, feeds and repos on a schedule, tell you only what matters, ask before doing anything with side effects, and keep a memory your other AI tools can use through MCP.
 
 ---
 
-## 2. Target architecture
+## 1. Why pivot
 
-```
-                ┌──────────────── Next.js (www/) ────────────────┐
- Browser ──────►│ App Router UI · better-auth (sessions) · BFF   │
-                └──────────────┬─────────────────────────────────┘
-                               │ HTTP (session token forwarded)
-                ┌──────────────▼──────────── Go (cmd/api) ───────┐
-                │ REST API · auth via better-auth session table  │
-                │ SSE stream for chat + digest generation        │
-                └──────────────┬─────────────────────────────────┘
-                               │
-   ┌───────────────────────────▼──────────────────────┐
-   │ Postgres 16 + pgvector   (single source of truth, │
-   │ also the job queue via FOR UPDATE SKIP LOCKED)    │
-   └───────────────────────────▲──────────────────────┘
-                               │
-                ┌──────────────┴──────────── Go (cmd/worker) ────┐
-                │ Feed poller → parse RSS/Atom → readability     │
-                │ extract → AI enrichment jobs (summary, tags,   │
-                │ embedding, clustering) → daily digests         │
-                └──────────────┬─────────────────────────────────┘
-                               │
-        LLM gateway (Groq → OpenRouter fallback, OpenAI-compatible) · Voyage embeddings
-```
+AI RSS readers are a solved, crowded category: summaries, "chat with your feeds" and daily digests ship in Feedly, Inoreader, Readwise and others. What people still lack in 2026 is **background AI they can trust**: agents that run unattended, cost little, can't do damage on their own, and show their work.
 
-Key decisions:
-- **Drop Kafka.** One Postgres job table with `SKIP LOCKED` handles this scale with zero extra infra. Can be swapped later.
-- **Redis optional** — rate limiting + caching hot feed lists; not required to run.
-- **better-auth stays the auth owner.** Go validates requests by looking up the session token in the shared `session` table (no separate JWT system).
-- **pgvector** for semantic search / RAG / "for you" ranking — keeps everything in one DB.
-- **docker-compose** for Postgres (pgvector) so `make db` works on a fresh machine. Redis is left out until something needs it.
+The product combines three pillars:
 
----
-
-## 3. AI features
-
-| # | Feature | What the user sees | How |
-|---|---|---|---|
-| A1 | **Article summaries** | TL;DR + 3 key points on every article card; "Explain like I'm new to this" toggle | On ingest, worker calls the LLM with extracted article text; JSON output `{tldr, key_points[], topics[], reading_time, sentiment}` validated in Go. Backfills are throttled through the rate limiter. |
-| A2 | **Auto-tagging & topics** | Articles tagged (AI, Startups, Security…); smart folders built from tags | Same enrichment call as A1 returns `topics[]` from a fixed taxonomy + free-form entities. |
-| A3 | **Story clustering / dedupe** | "Covered by 5 sources" — one card per story, expandable | Embedding similarity (cosine > threshold within 48h window) → `story_clusters`. |
-| A4 | **Daily AI Briefing** | A morning digest page: top stories across *your* feeds, grouped by theme, with citations back to articles | Scheduled per-user job; the LLM writes digest from that day's cluster summaries. Optional email later. |
-| A5 | **Ask your feeds (RAG chat)** | Chat panel: "What did people say about the new GPU launches this week?" → streamed answer with cited articles | Embed query → pgvector top-k (filtered to user's subscriptions + date range) → LLM with numbered source snippets, told to cite `[n]`; citations mapped back to articles → SSE stream. |
-| A6 | **Semantic search** | Search box that understands meaning, not just keywords | Hybrid: Postgres full-text (`tsvector`) + vector similarity, merged with RRF. |
-| A7 | **"For You" ranking** | Default feed sorted by relevance to you, not just recency | User interest vector = weighted mean of embeddings of articles read/saved/upvoted; score = similarity × recency decay. No LLM call needed. |
-| A8 | **Smart onboarding / feed discovery** | Paste any site URL → we find its feed. Or type interests ("rust, climate tech") → suggested feeds | Feed autodiscovery (`<link rel=alternate>`) in Go; LLM suggests sources from a curated catalog by interest. |
-
-MVP AI scope = **A1, A2, A5, A6**. Then A4, A3, A7, A8.
-
-### Model & provider decisions (free-tier first)
-
-All LLM calls go through one small Go `llm` package that speaks the **OpenAI-compatible chat API**, so the provider is just `base_url + api_key + model` in env. Any of Groq, OpenRouter or Vercel AI Gateway can be swapped in without code changes.
-
-| Use | Provider | Model (env-configurable) | Free-tier budget* |
-|---|---|---|---|
-| Enrichment (summary + tags), every article | **Groq** | `openai/gpt-oss-20b` | ~1,000–14,400 req/day, 30 RPM |
-| Briefing + Ask chat | **Groq** | `openai/gpt-oss-120b` | ~1,000 req/day, 30 RPM |
-| Fallback when Groq 429s | **OpenRouter** | a `:free` model | 20 RPM; 50 req/day (1,000/day after a one-time $10 credit purchase) |
-| Embeddings (search, RAG, dedupe, For You) | **Voyage AI** | `voyage-4-lite` @ 1024 dims | large one-time free token grant (reported 200M) |
-
-\* Free-tier numbers vary between sources and change often. Check the providers' own pages. The design doesn't depend on exact numbers.
-
-Why: Groq has the most generous free daily limits and is very fast (good for streamed chat). OpenRouter's free tier is too small to be primary but works as a fallback. Vercel AI Gateway is mainly a router over paid providers, so it adds nothing on a $0 budget. It can still be plugged in later through the same interface. Voyage's free grant covers millions of articles; Gemini embeddings (free, rate-limited) is the backup option.
-
-How we stay inside free limits:
-- **Worker-side rate limiter** per provider (token bucket ≈ 25 RPM) plus a fallback chain Groq → OpenRouter → mark job `deferred`, retried later. Nothing breaks when quota runs out; summaries just arrive later.
-- **Enrich once per article, not per user.** AI output lives on the shared `article_ai` row, so 100 users on the same feed still cost one call.
-- **Truncate input** to ~3k tokens of extracted text; ask for **JSON output** and validate it in Go; retry once on bad JSON.
-- **Batch embeddings** (up to 128 texts per Voyage call).
-- **The briefing reuses stored summaries**, so it costs one LLM call per user per day.
-- **For You + dedupe use only vectors**, with no LLM calls.
-- Per-user daily quota for chat (e.g. 30 questions/day) stored in `ai_usage`.
-- Embedding dimension is fixed at 1024 in the schema. Switching embedding provider means re-embedding (a script will do this).
-
----
-
-## 4. Data model (new migrations)
-
-```
-feeds            id, url (unique), site_url, title, description, favicon,
-                 etag, last_modified, last_fetched_at, next_fetch_at, error_count
-subscriptions    user_id, feed_id, folder, custom_title, created_at
-articles         id, feed_id, guid (unique per feed), url, title, author,
-                 published_at, content_html, content_text, image_url,
-                 search_tsv (generated tsvector)
-article_ai       article_id, tldr, key_points jsonb, topics text[], entities jsonb,
-                 sentiment, reading_minutes, model, embedding vector(N), cluster_id,
-                 status (pending|done|failed), updated_at
-user_article     user_id, article_id, read_at, saved, rating (-1/0/1)
-story_clusters   id, centroid vector(N), title, first_seen, last_seen
-digests          id, user_id, date, content jsonb (sections + citations), model
-chat_threads / chat_messages   for A5 history
-jobs             id, kind, payload jsonb, run_at, attempts, locked_at, last_error
-ai_usage         user_id, day, input_tokens, output_tokens
-```
-
-Keep better-auth tables as-is. Use goose for migrations + sqlc for queries (already set up).
-
----
-
-## 5. API surface (Go)
-
-```
-GET    /v1/me
-GET    /v1/feeds                      POST /v1/feeds {url}  (autodiscovers)
-DELETE /v1/feeds/:id                  POST /v1/feeds/opml   (import)
-GET    /v1/articles?feed=&topic=&sort=for_you|latest&cursor=
-GET    /v1/articles/:id               POST /v1/articles/:id/state {read,saved,rating}
-GET    /v1/search?q=                  (hybrid)
-GET    /v1/briefing/today             POST /v1/briefing/regenerate
-POST   /v1/chat (SSE)                 GET  /v1/chat/threads
-GET    /v1/discover?interests=
-```
-
----
-
-## 6. Frontend redesign (www/)
-
-Keep: Next 16, Tailwind v4, shadcn, better-auth. Tooling: oxlint + oxfmt. Font: Sora (UI), Geist Mono (code). Add: TanStack Query, `nuqs` for URL state, `cmdk` command palette.
-
-Screens:
-1. **Landing** — rewrite around the AI angle (briefing preview, chat demo), fix copy.
-2. **Auth** — sign-in/up + Google/GitHub OAuth; real `middleware.ts` protecting `/app/*`.
-3. **Onboarding** — pick interests → suggested feeds → paste URLs / import OPML.
-4. **App shell** (3-pane reader): sidebar (Briefing, For You, Latest, Saved, Topics, Feeds/folders) · article list (cards with AI TL;DR, topic chips, "5 sources" badge) · reader pane (clean article, AI key points, related stories).
-5. **Briefing** — editorial layout of today's digest with inline citations.
-6. **Ask** — chat panel (slide-over from anywhere, ⌘J) with streamed answers + source cards.
-7. **Search** — ⌘K palette with semantic results.
-8. **Settings** — feeds management, AI preferences (summary length, briefing time), usage.
-
-Design direction: calm, reading-first (serif article body, generous whitespace), dark/light, keyboard-first (j/k navigation, s to save, o to open).
-
----
-
-## 7. Phased roadmap
-
-| Phase | Deliverable | "Done" means |
+| Pillar | What it is | Role |
 |---|---|---|
-| **0. Foundations** ✅ | docker-compose (pg+pgvector), env cleanup, delete dead code, `cmd/api` + `cmd/worker` that compile, chi router, session-based auth middleware, CI (go build/vet/test + next build/lint), upgrade all deps (Next 16, React 19.3, better-auth 1.7, Zod 4, TS 7), oxlint + oxfmt, Sora font | `make db migrate-up` + `make api` + `make web` run the stack; `/v1/me` works with a better-auth session (verified end to end) |
-| **1. Core reader** ✅ | Feed add/autodiscover, RSS+Atom parse (gofeed), conditional GET, readability extraction, poll scheduler, articles API, app shell + reader UI, read/save state, OPML import | Add a feed in the UI → articles appear within a minute and are readable |
-| **2. AI enrichment** ✅ | Job queue, LLM enrichment (Groq + fallback) (A1+A2), embeddings, usage tracking, UI for summaries/topics | New articles show TL;DR + topics automatically |
-| **3. Search & Ask** | Hybrid search (A6), RAG chat with SSE + citations (A5) | Ask a question, get a streamed cited answer |
-| **4. Briefing & ranking** | Clustering (A3), daily briefing (A4), For You (A7), onboarding (A8) | Morning briefing generated per user; For You is default view |
-| **5. Polish & ship** | Landing rewrite, keyboard shortcuts, empty/error states, rate limits, tests, Dockerfiles, deploy guide | Deployable with one compose file |
+| **A. Watcher agents** | Scheduled agents with a mission, sources, tools and a budget. They detect change, judge relevance and write reports. | The core product, MVP lead |
+| **B. Context hub + MCP** | Everything agents read and write is stored, embedded and searchable, and exposed to Claude, Cursor, ChatGPT etc. through an MCP server. | Memory for agents, the reason to keep data here |
+| **C. Approvals inbox** | One inbox for reports, alerts, agent questions and action approvals, from our agents and from external agents (via MCP or webhook). | The trust layer: nothing outward-facing happens without a yes |
+
+### Example agents (templates shipped in-app)
+
+- **Competitor pricing:** "Check these 4 pricing pages every Monday. Report only real price, plan or limit changes, not copy edits."
+- **Dependency radar:** "Watch Go, Postgres and pgx releases. Tell me only about breaking changes or security fixes that affect a Go + Postgres 17 app."
+- **Opportunity scout:** "Watch these grant and job boards and these RSS feeds. Alert me about remote Go roles over $X or grants for open-source infra."
+- **Story tracker:** "Follow this news topic across my feeds. Send a short 'what changed since last time' each evening."
+
+### Product principles
+
+1. **No change, no tokens.** Deterministic change detection runs first and costs nothing. A small model triages relevance. The main model only runs when something likely matters.
+2. **Quiet by default.** Agents report only above a significance threshold. One useful alert beats twenty digests.
+3. **Read freely, act with permission.** In v1 every side-effecting tool goes through the approval inbox, without exception.
+4. **Show the work.** Every run has a step-by-step timeline: what was fetched, what changed, what the model saw, which tools ran, and what it cost.
+5. **Own your stack.** Self-host with one `docker compose up`. Bring your own LLM keys, with a free-tier default so it works on day one.
+
+---
+
+## 2. Decisions so far
+
+| Topic | Decision |
+|---|---|
+| Hosting | **Self-host first**: single compose file, one user or a small team (invite-only). Code stays multi-user safe so a hosted version is possible later. |
+| LLM access | **BYOK + free default**: users add Anthropic / OpenAI / OpenRouter / any OpenAI-compatible keys. The existing Groq → OpenRouter free chain is the zero-config fallback. |
+| MVP lead | **Watcher agents**, with the run log and approvals inbox built in from the start. |
+| Agent autonomy (v1) | **Read + notify; actions gated.** Fetch, diff, search and report run freely. Email, webhooks and other outward actions wait for approval. |
+| Notifications (v1) | **In-app inbox + web push (PWA) + email (SMTP).** |
+| Frontend | **SvelteKit 2 + Svelte 5 (runes)**, Tailwind v4, **shadcn-svelte**, bun. |
+| SvelteKit role | **UI + auth + BFF**: better-auth runs in SvelteKit, and `/api/v1/*` is proxied to Go. Go owns all business logic. |
+| Backend | Keep **Go** (`cmd/api` + `cmd/worker`), Postgres 17 + pgvector, goose, sqlc, Postgres `SKIP LOCKED` job queue. |
+| Name | **Lookfar.** Heed, Perch, Vigil, Hark and Outpost were rejected because each is already an AI-agent or dev-infra product. A search in Oct 2026 found no software named Lookfar (domains and GitHub org not yet registered). |
+
+---
+
+## 3. Architecture
+
+```
+                  ┌──────────────── SvelteKit (web/) ──────────────────┐
+ Browser / PWA ──►│ UI · better-auth (sessions) · /api/v1 proxy · SW   │
+                  └───────────────┬────────────────────────────────────┘
+                                  │ HTTP + SSE (session cookie forwarded)
+ Claude / Cursor /                │
+ other agents ── MCP (token) ──┐  │
+ webhooks ──── REST (token) ───┤  │
+                  ┌────────────▼──▼──────────── Go (cmd/api) ───────────┐
+                  │ REST API · MCP server (/mcp) · SSE run streams       │
+                  │ auth: better-auth session cookie OR API token        │
+                  └───────────────┬──────────────────────────────────────┘
+                                  │
+          ┌───────────────────────▼────────────────────────────┐
+          │ Postgres 17 + pgvector                              │
+          │ sources · snapshots · agents · runs · inbox ·       │
+          │ documents/chunks (memory) · jobs (SKIP LOCKED)      │
+          └───────────────────────▲────────────────────────────┘
+                                  │
+                  ┌───────────────┴──────────── Go (cmd/worker) ────────┐
+                  │ Scheduler → source checks → change detection        │
+                  │ → triage (small model) → agent run (tool loop)      │
+                  │ → report / inbox item → notify (push, email)        │
+                  │ embedding + memory indexing jobs                    │
+                  └───────────────┬─────────────────────────────────────┘
+                                  │
+           LLM adapters: OpenAI-compatible (Groq, OpenRouter, OpenAI, local) · Anthropic native
+           Embeddings: Voyage (default) · OpenAI-compatible
+```
+
+### What we reuse from the current codebase
+
+| Existing package | Fate |
+|---|---|
+| `internal/auth` | **Keep as is.** It verifies the better-auth cookie and doesn't care whether Next or SvelteKit set it. Add API-token auth next to it. |
+| `internal/jobs` | **Keep.** It becomes the backbone for source checks, agent runs, resumes and notifications. |
+| `internal/llm` | **Extend.** Add tool calling, an Anthropic native adapter, per-user credentials, cost accounting. The fallback chain and rate limiter stay. |
+| `internal/llm/voyage.go`, `internal/enrich/embed.go` | **Keep** for memory embeddings. |
+| `internal/feed` (fetch, parse, discover, extract) | **Keep, move** into `internal/source` as the RSS/Atom and page fetchers. The SSRF guard and conditional GET are reused for every fetch. |
+| `internal/ingest`, `internal/enrich` (summaries) | **Replace.** Per-article enrichment is replaced by change detection + triage + agent runs. |
+| `internal/httpapi/reader.go` | **Replace** with agents / runs / inbox / sources handlers. |
+| `internal/config`, `logging`, `postgres` | **Keep**, add new settings. |
+| `www/` (Next.js) | **Replace** with `web/` (SvelteKit). Carry over design tokens and `STYLE_GUIDE.md`. |
+| `sql/schema/003_reader.sql`, `004_ai.sql` | **Replace** with a fresh migration series (nothing is deployed). `001_better_auth.sql` and `002_extensions.sql` stay. |
+
+---
+
+## 4. Core concepts
+
+### Source
+A thing to watch, owned by a user and shared across that user's agents.
+
+| Kind | How it's checked | What a "change" is |
+|---|---|---|
+| `rss` | gofeed, conditional GET | new or updated entries |
+| `page` | HTTP GET → readability or CSS selector → normalized text | text diff after normalization (whitespace, dates, tracking params stripped) |
+| `github` | GitHub REST (releases, tags, optional issues/PRs by label); optional token | new releases or items |
+| `json` | HTTP GET + JSONPath | changed values |
+
+Each check stores a **snapshot** (content hash + normalized text or items). If the hash matches the last snapshot, the check stops and no LLM runs. Otherwise a structured **diff** is stored and the agents attached to that source are triggered.
+
+Page sources include **noise filters**: ignore selectors, "ignore numbers that look like timestamps", and a minimum diff size, so cookie banners and "updated 3 min ago" don't wake agents.
+
+### Agent
+| Field | Meaning |
+|---|---|
+| `mission` | Natural-language instructions: what to watch for and what counts as important |
+| `sources` | Attached sources |
+| `trigger` | `on_change` (default), `cron` (e.g. Monday 9:00), or both |
+| `tools` | Allowed tool set (see §5) |
+| `allowed_domains` | Extra domains `fetch_url` may reach beyond its sources |
+| `models` | Triage model profile + main model profile |
+| `budget` | Max cost per run and per month; the run stops cleanly when exceeded |
+| `notify` | Channels + minimum significance (`low` / `medium` / `high`) |
+| `memory` | Notes the agent keeps between runs (e.g. "Pro plan was $49 on 2026-10-01") |
+
+### Run
+One execution of an agent: trigger → triage → (maybe) main loop → output. States:
+
+```
+queued → triaging → skipped (not relevant, cheap exit)
+                  → running ⇄ waiting_user (question / approval in inbox)
+                            → succeeded | failed | budget_exceeded | cancelled
+```
+
+Every step (LLM call, tool call, tool result, approval, note) is a persisted `run_step` with tokens, cost and duration. That gives the UI timeline and makes runs **resumable**: when you answer an approval, a `resume_run` job continues from the last step.
+
+### Inbox item
+| Kind | Created by | Your response |
+|---|---|---|
+| `report` | Agent `report` tool | Read, rate (👍/👎 trains the significance threshold), dismiss |
+| `alert` | High-significance report | Same as report, plus push |
+| `question` | Agent `ask_user` tool or external agent via MCP | Free-text or choice answer; the run resumes |
+| `approval` | Gated action (send email, webhook…) or external agent | Approve / deny / edit-then-approve; the run resumes |
+
+Approvals always show **exactly** what will happen (recipient, full payload). They expire after a configurable time (default 48h → treated as denied).
+
+---
+
+## 5. Agent runtime
+
+### Pipeline per trigger
+1. **Detect** (no LLM): fetch → normalize → hash → diff. Unchanged → stop.
+2. **Triage** (small/cheap model, ~1 call): given mission + diff, return `{relevant: bool, significance, reason}` as validated JSON. Not relevant → run ends as `skipped`, logged at ~zero cost.
+3. **Act** (main model, tool loop): system prompt = mission + agent memory + diff + recent reports. Loop up to `max_steps` (default 12), checking the budget before every LLM call.
+4. **Output**: the agent must end with `report` (or `nothing_to_report`). The report becomes a document in memory and an inbox item, and notifications fire if significance ≥ the agent's threshold.
+
+### Tools (v1)
+| Tool | Side effects | Gated |
+|---|---|---|
+| `get_diff`, `get_snapshot(source, at?)` | none | no |
+| `fetch_url(url)` (SSRF-guarded, domain allowlist, size cap) | none | no |
+| `search_memory(query, filters)` | none | no |
+| `web_search(query)` (optional, see open decisions) | none | no |
+| `remember(key, value)` / `forget(key)` | agent's own memory | no |
+| `report(title, body_md, significance, citations[])` | inbox item | no |
+| `ask_user(question, choices?)` | inbox item, pauses run | — |
+| `send_email(to, subject, body)` | outward | **yes** |
+| `post_webhook(endpoint_id, payload)` (pre-registered endpoints only) | outward | **yes** |
+
+Later: `create_github_issue`, `post_slack`, user-defined HTTP tools, and policy-based auto-approval.
+
+### Safety model
+- **All fetched content is untrusted.** It's wrapped and labeled as data in prompts, and the system prompt says instructions inside it must be ignored.
+- **Injection can't cause side effects on its own:** every outward tool is gated, and the approval card shows the real payload. Webhooks can only go to endpoints the user registered.
+- `fetch_url` reuses the existing SSRF guard (no private IPs unless `ALLOW_PRIVATE_SOURCES`), honors the per-agent domain allowlist, and caps response size and time.
+- Per-run and per-month budgets; a global kill switch (pause all agents).
+- LLM keys and channel secrets are encrypted at rest with AES-256-GCM under `APP_SECRET_KEY`.
+
+### LLM layer changes (`internal/llm`)
+- `Request` gains `Tools []ToolDef` and `ToolChoice`; `Response` gains `ToolCalls []ToolCall`.
+- Two adapters behind one interface: **OpenAI-compatible** (Groq, OpenRouter, OpenAI, Ollama/LM Studio) and **Anthropic Messages API** (native tool use and prompt caching).
+- **Model profiles** per user: `{credential, model, role: triage|main|embed}`. Agents pick profiles; the free Groq chain is the built-in default profile.
+- **Cost accounting**: a price table (per model, editable in settings) → `cost_micros` on every step, rolled up per run, agent, day and user.
+
+### Agent quality: evals
+Agents are only useful if triage is right. Ship an eval harness from phase 2:
+- `testdata/evals/*.yaml`: mission + before/after snapshot + expected `{relevant, min_significance}`.
+- `make eval` runs them against a chosen model profile and prints precision/recall + cost.
+- CI runs them with recorded responses; live runs are optional with a key.
+- 👍/👎 on reports can be exported as new eval cases.
+
+---
+
+## 6. Context hub + MCP
+
+### Memory
+Everything worth recalling becomes a **document**: feed entries, page snapshots (latest per source), reports, agent notes, and later manual saves and uploads. Documents are chunked (~800 tokens), embedded (Voyage, 1024 dims) and indexed for **hybrid search** (Postgres `tsvector` + pgvector, merged with reciprocal rank fusion). Agents use it through `search_memory`, and you use it through the search page and ⌘K.
+
+### MCP server
+Served by the Go API at `/mcp` (Streamable HTTP transport, official Go MCP SDK), authenticated with **personal API tokens** (scoped, revocable, hashed at rest).
+
+| MCP tool | Scope |
+|---|---|
+| `search_memory(query, since?, source?)` | `memory:read` |
+| `list_reports(agent?, since?)`, `get_report(id)` | `memory:read` |
+| `list_agents()`, `get_agent(id)`, `run_agent(id)` | `agents:read` / `agents:run` |
+| `inbox_ask(question, choices?)` → item id | `inbox:write` |
+| `inbox_request_approval(title, details)` → item id | `inbox:write` |
+| `inbox_get_response(id)` (poll; returns pending/answer) | `inbox:write` |
+
+The `inbox_*` tools are pillar C for **external** agents: a Claude Code session or a script can ask you to approve something, and you answer from your phone. The same endpoints are also plain REST (`POST /v1/inbox`) for webhooks and scripts.
+
+---
+
+## 7. Data model (fresh migration series)
+
+Keep `001_better_auth.sql` and `002_extensions.sql`. New tables (all user-owned rows carry `user_id` and are filtered by it in every query):
+
+```
+sources              id, user_id, kind, url, title, config jsonb (selector, ignore rules, jsonpath),
+                     interval, next_check_at, etag, last_modified, error_count, last_error, paused
+snapshots            id, source_id, fetched_at, content_hash, content jsonb (text | items),
+                     diff jsonb (vs previous), size_bytes
+agents               id, user_id, name, mission, trigger jsonb (on_change, cron), tools text[],
+                     allowed_domains text[], triage_profile_id, main_profile_id,
+                     budget_run_micros, budget_month_micros, notify jsonb, min_significance,
+                     status (active|paused), created_at, updated_at
+agent_sources        agent_id, source_id
+agent_notes          agent_id, key, value, updated_at
+runs                 id, agent_id, trigger (change|cron|manual|mcp), snapshot_id, status,
+                     significance, report_document_id, input_tokens, output_tokens,
+                     cost_micros, error, started_at, finished_at
+run_steps            run_id, seq, kind (llm|tool_call|tool_result|approval|note), payload jsonb,
+                     input_tokens, output_tokens, cost_micros, duration_ms, created_at
+inbox_items          id, user_id, run_id?, origin (agent|mcp|api), kind (report|alert|question|approval),
+                     title, body_md, payload jsonb, status (open|approved|denied|answered|dismissed|expired),
+                     response jsonb, rating, expires_at, created_at, resolved_at
+documents            id, user_id, kind (feed_item|snapshot|report|note|upload), source_id?, run_id?,
+                     title, url, text, search_tsv, created_at
+chunks               document_id, idx, text, embedding vector(1024)   -- HNSW index
+llm_credentials      id, user_id, provider, base_url, label, key_enc, created_at
+model_profiles       id, user_id, name, credential_id (null = built-in free chain), model, role
+model_prices         model, input_per_mtok_micros, output_per_mtok_micros   -- editable
+notification_targets id, user_id, kind (email|webpush), config_enc, verified
+push_subscriptions   id, user_id, endpoint, keys_enc, user_agent, created_at
+webhook_endpoints    id, user_id, name, url, secret_enc            -- the only targets post_webhook may use
+api_tokens           id, user_id, name, token_hash, scopes text[], last_used_at, revoked_at
+usage_daily          day, user_id, agent_id?, requests, input_tokens, output_tokens, cost_micros
+jobs                 (unchanged from today)
+```
+
+---
+
+## 8. Frontend (SvelteKit)
+
+### Stack
+SvelteKit 2, Svelte 5 runes, TypeScript, Tailwind v4, **shadcn-svelte** (Bits UI), lucide-svelte, bun, `svelte-check`. Design tokens and fonts come from the current `globals.css` / `STYLE_GUIDE.md`. better-auth runs through its SvelteKit handler (`svelteKitHandler` in `hooks.server.ts`) against the same Postgres tables. `/api/v1/[...path]/+server.ts` proxies to Go and forwards the cookie. Live run logs use SSE. `adapter-node` builds the production image.
+
+### Screens
+| Route | Purpose |
+|---|---|
+| `/` | Landing: "agents you can leave running", live demo of a run timeline |
+| `/signin`, `/signup`, `/invite/[code]` | Auth (email/password; OAuth later). First user becomes admin. |
+| `/app/onboarding` | 1) Model: use free default or paste a key. 2) Pick a template agent. 3) Enable push. |
+| `/app` (Inbox) | **Home.** Reports, alerts, questions and approvals; filters; approve/deny inline; keyboard-first (j/k, a approve, d deny, e edit) |
+| `/app/agents` | List with status, last run, 30-day cost, success/skip ratio |
+| `/app/agents/new`, `/app/agents/[id]` | Editor: mission, sources, trigger, tools, budget, notify; **"Dry run"** on the latest diff |
+| `/app/runs/[id]` | Timeline: diff → triage verdict → each LLM/tool step (expandable payloads) → output; tokens and cost per step; live via SSE |
+| `/app/sources`, `/app/sources/[id]` | Sources and snapshot history with side-by-side **diff viewer**; selector picker preview |
+| `/app/memory` | Hybrid search over everything; ⌘K anywhere |
+| `/app/settings/*` | Models & keys, notifications, webhooks, API tokens / MCP setup (copy-paste config for Claude Desktop / Claude Code), usage & budgets, members/invites |
+
+### PWA
+Manifest + service worker (SvelteKit `service-worker.ts`). The Go worker sends **web push** with VAPID (`webpush-go`). Approval notifications deep-link to the inbox item, so approve/deny works from the phone.
+
+---
+
+## 9. Roadmap
 
 Each phase ends in a working, demoable app.
 
+| Phase | Deliverables | Done means |
+|---|---|---|
+| **0. Pivot foundations** | Rename to Lookfar (Go module `github.com/codebyaadi/lookfar`, compose service/DB names, env prefixes, README, repo); scaffold `web/` (SvelteKit + shadcn-svelte + better-auth); port design tokens; delete `www/`; fresh migration series; move `internal/feed` → `internal/source`; remove reader/enrich code; API-token auth; update Makefile, compose, Dockerfile, CI | Sign up in SvelteKit → `/app` shows an empty inbox from Go `/v1/me` + `/v1/inbox` |
+| **1. Sources & change detection** | `rss`/`page`/`github` sources, normalization + noise filters, snapshots, diffs, scheduler, Sources UI + diff viewer. **No LLM yet.** | Add a pricing page; edit it locally; see a clean diff in the UI |
+| **2. Agent runtime** | LLM tool calling (OpenAI-compatible + Anthropic), encrypted BYOK credentials, model profiles, price table, run state machine + steps, triage → act pipeline, budgets, read-only tools, `report`, agent editor, run timeline (SSE), templates, eval harness | A template agent watching a page writes a sensible report on a real change and skips a noise change, with cost shown |
+| **3. Inbox & notifications** | Inbox items, `ask_user`, gated `send_email` + `post_webhook`, resume after answer, expiry, SMTP email, PWA + web push, significance thresholds + 👍/👎 | An agent proposes a webhook call → push on phone → approve → run resumes and succeeds |
+| **4. Memory & MCP** | Documents + chunks + embeddings, hybrid search, `search_memory` tool, memory page + ⌘K, MCP server with scoped tokens, external `inbox_*` tools, REST inbox API | Claude Desktop connects to `/mcp`, finds last week's reports, and asks you for an approval that you answer in the inbox |
+| **5. Polish & ship** | Landing page, one-file compose (postgres + api + worker + web), backups doc, invites, rate limits, empty/error states, tests, docs | Fresh VPS → `docker compose up` → working Lookfar instance in under 10 minutes |
+
+**Later:** Telegram/ntfy/Slack, policy-based auto-approval, headless-browser sources, user-defined HTTP tools, newsletter inbox source, hosted multi-tenant version.
+
 ---
 
-## 8. Decisions log
+## 10. Open decisions
 
-| Decision | Choice |
+Each has a default the plan assumes. Change any of them before its phase starts.
+
+| # | Decision | Options | Default | Needed by |
+|---|---|---|---|---|
+| 1 | **Domain + GitHub** | lookfar.dev · lookfar.app · getlookfar.com; repo rename vs new repo | Check and register before Phase 5 launch; rename this repo (GitHub redirects old URLs) | Phase 0 |
+| 2 | **Web search tool** | None in v1 · SearXNG (self-hosted, compose profile) · Tavily / Brave API (BYOK) | Pluggable interface; SearXNG optional profile + BYOK Tavily/Brave | Phase 2 |
+| 3 | **JS-rendered pages** | Plain HTTP + readability only · optional headless Chromium (`chromedp` or a Browserless container) | Plain HTTP in v1; Chromium as an optional compose profile later | Phase 1 / later |
+| 4 | **Frontend lint/format** | oxlint (TS) + Prettier w/ `prettier-plugin-svelte` · ESLint + `eslint-plugin-svelte` + Prettier · oxfmt if it supports `.svelte` by then | oxlint + Prettier + svelte-check | Phase 0 |
+| 5 | **Migrations** | Fresh series (drop reader tables) · keep and migrate forward | Fresh series (nothing deployed) | Phase 0 |
+| 6 | **Sign-up mode** | First user = admin, then invite-only · open sign-up | Invite-only | Phase 0 |
+| 7 | **Embeddings default** | Voyage (current) · OpenAI-compatible BYOK · local (Ollama) | Voyage, OpenAI-compatible as BYOK option, 1024 dims fixed | Phase 4 |
+| 8 | **Frontend data layer** | SvelteKit `load` + form actions only · plus `@tanstack/svelte-query` for client polling/caching | `load` + form actions, with SSE for live data; add svelte-query only if needed | Phase 0 |
+| 9 | **Monorepo layout** | `web/` beside Go at root (as today) · `apps/web` + `apps/api` workspace | `web/` at root | Phase 0 |
+
+---
+
+## 11. Risks
+
+| Risk | Mitigation |
 |---|---|
-| Backend | Go: `cmd/api` + `cmd/worker` (rewrite); Next.js for UI + better-auth |
-| LLM | Groq free tier (gpt-oss-20b bulk, gpt-oss-120b chat/briefing), OpenRouter `:free` fallback, behind an OpenAI-compatible interface |
-| Embeddings | Voyage AI `voyage-4-lite` (free grant), Gemini as backup |
-| MVP AI scope | All four: summaries + tags, Ask (RAG chat + semantic search), daily briefing, For You + dedupe |
-| Queue | Postgres `SKIP LOCKED` (Kafka dropped) |
-
-| Visual design | Palette from you.brainfogagency.com (warm paper / ink canvas, indigo primary, lavender accent, hairline translucent borders, glass panels), mapped onto shadcn tokens in `globals.css`; Sora UI font; serif reading pane |
-| Frontend tooling | bun, oxlint + oxfmt, TypeScript 7 `tsc` (with TS 6 API aliased for tools), Sora font |
-
-Still open (sensible defaults assumed): deploy via **docker-compose** (self-host) first.
+| Noisy page diffs wake agents constantly | Normalization, ignore selectors, minimum diff size, triage step; diffs viewable so users can tune filters |
+| Free-tier models are weak at tool use | Triage works fine on small models; the main loop recommends a BYOK model; evals show quality per model |
+| Prompt injection from watched pages | Untrusted-content wrapping, all outward tools gated, webhook targets pre-registered, approval shows the real payload |
+| Cost surprises with BYOK | Per-run and monthly budgets checked before every call, cost shown per step, global pause |
+| Sites blocking bots | Respectful intervals, conditional GET, honest User-Agent; headless browser only as an opt-in |
+| Scope creep across three pillars | Strict phase order: A → C → B; each phase demoable before the next starts |

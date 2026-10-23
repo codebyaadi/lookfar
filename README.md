@@ -1,14 +1,14 @@
-# Feedoku
+# Lookfar
 
-An AI-powered RSS reader. Subscribe to feeds and Feedoku summarizes and tags every article, writes you a daily briefing, ranks a "For You" feed, and answers questions about everything you follow, with citations.
+Self-hosted watcher agents you can leave running. Describe what to watch in plain language. Agents check pages, feeds and repos on a schedule, tell you only what matters, ask before doing anything with side effects, and keep a memory your other AI tools can use through MCP.
 
-> 🚧 Being rebuilt. See [PLAN.md](PLAN.md) for the architecture and roadmap. Phase 0 (foundations) is done.
+> 🚧 **Pivot in progress.** The project is moving from an AI RSS reader to watcher agents + approvals inbox + MCP context hub, with a SvelteKit frontend. See [PLAN.md](PLAN.md) for the new architecture and roadmap. The code below still describes the old reader (formerly Feedoku) until Phase 0 of the new plan lands, which also renames modules and services to Lookfar.
 
-## Stack
+## Stack (current code)
 
 | Part | Tech |
 |---|---|
-| Web | Next.js 16, React 19, Tailwind v4, shadcn/ui, better-auth, bun, oxlint + oxfmt |
+| Web | Next.js 16, React 19, Tailwind v4, shadcn/ui, better-auth, bun, oxlint + oxfmt (moving to SvelteKit 2 + Svelte 5 + shadcn-svelte) |
 | API | Go 1.26, chi, pgx, sqlc (`cmd/api`) |
 | Worker | Go (`cmd/worker`): feed polling and AI jobs |
 | Database | PostgreSQL 17 + pgvector, migrations via goose |
