@@ -13,8 +13,8 @@
   <link rel="icon" href={favicon} type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0d0e11" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#fbf5eb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0f0b07" media="(prefers-color-scheme: dark)" />
 </svelte:head>
 
 <ModeWatcher />

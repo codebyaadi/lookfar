@@ -53,71 +53,72 @@
 }
 
 @layer base {
-  /* Palette adapted from the YOU/ME design system: warm paper canvas,
-     indigo ink, lavender accent, hairline translucent edges. */
+  /* Lookfar palette ("ember"): one warm amber hue family throughout. The dark
+     canvas is a brown-black, the primary a pale amber, the accent amber; light
+     mode is cream paper with espresso ink. Hairline translucent edges. */
   :root {
     color-scheme: light;
-    --background: #f6f3ee;
-    --foreground: #15171c;
+    --background: #fbf5eb;
+    --foreground: #1f1710;
     --card: #ffffff;
-    --card-foreground: #15171c;
+    --card-foreground: #1f1710;
     --popover: #ffffff;
-    --popover-foreground: #15171c;
-    --primary: #2e2a4a;
+    --popover-foreground: #1f1710;
+    --primary: #3b2412;
     --primary-foreground: #ffffff;
-    --secondary: rgba(21, 23, 28, 0.05);
-    --secondary-foreground: #2e2a4a;
-    --muted: rgba(21, 23, 28, 0.05);
-    --muted-foreground: #5a5e66;
-    --accent: rgba(125, 116, 176, 0.16);
-    --accent-foreground: #2e2a4a;
-    --destructive: #a11f16;
+    --secondary: rgba(31, 23, 16, 0.05);
+    --secondary-foreground: #3b2412;
+    --muted: rgba(31, 23, 16, 0.05);
+    --muted-foreground: #6b5d4e;
+    --accent: rgba(214, 120, 20, 0.16);
+    --accent-foreground: #5a3208;
+    --destructive: #b3261e;
     --destructive-foreground: #ffffff;
-    --border: rgba(21, 23, 28, 0.12);
-    --input: rgba(21, 23, 28, 0.16);
-    --ring: #5b52a0;
-    --brand: #5b52a0;
-    --blob-1: #ece9f6;
-    --blob-2: rgba(218, 213, 238, 0.55);
-    --shadow-panel: 0 12px 40px rgba(40, 36, 60, 0.1);
+    --border: rgba(31, 23, 16, 0.12);
+    --input: rgba(31, 23, 16, 0.17);
+    --ring: #b45f06;
+    --brand: #b45f06;
+    --blob-1: #fbe3b8;
+    --blob-2: rgba(236, 170, 100, 0.35);
+    --shadow-panel: 0 12px 40px rgba(59, 36, 18, 0.12);
     --radius: 0.75rem;
-    --chart-1: #5b52a0;
+    --chart-1: #b45f06;
     --chart-2: #15795a;
-    --chart-3: #ff5a1f;
-    --chart-4: #1e4fa3;
-    --chart-5: #a02457;
+    --chart-3: #c2410c;
+    --chart-4: #1d4ed8;
+    --chart-5: #7c3aed;
   }
 
   .dark {
     color-scheme: dark;
-    --background: #0d0e11;
-    --foreground: #f4f2ed;
-    --card: #1a1b20;
-    --card-foreground: #f4f2ed;
-    --popover: #1a1b20;
-    --popover-foreground: #f4f2ed;
-    --primary: #dad5ee;
-    --primary-foreground: #15171c;
-    --secondary: rgba(255, 255, 255, 0.06);
-    --secondary-foreground: #ece9f6;
-    --muted: rgba(255, 255, 255, 0.05);
-    --muted-foreground: #a7a49c;
-    --accent: rgba(125, 116, 176, 0.26);
-    --accent-foreground: #ece9f6;
-    --destructive: #ffa69b;
-    --destructive-foreground: #15171c;
-    --border: rgba(255, 255, 255, 0.12);
-    --input: rgba(255, 255, 255, 0.16);
-    --ring: #c9c2ec;
-    --brand: #c9c2ec;
-    --blob-1: rgba(125, 116, 176, 0.26);
-    --blob-2: rgba(218, 213, 238, 0.12);
-    --shadow-panel: 0 12px 40px rgba(0, 0, 0, 0.45);
-    --chart-1: #c9c2ec;
-    --chart-2: #3dd994;
-    --chart-3: #ffc2aa;
-    --chart-4: #b5caee;
-    --chart-5: #ffe1ed;
+    --background: #0f0b07;
+    --foreground: #f7efe4;
+    --card: #1c150e;
+    --card-foreground: #f7efe4;
+    --popover: #1c150e;
+    --popover-foreground: #f7efe4;
+    --primary: #f5d9ae;
+    --primary-foreground: #1c1206;
+    --secondary: rgba(255, 214, 160, 0.07);
+    --secondary-foreground: #f3e3cb;
+    --muted: rgba(255, 214, 160, 0.05);
+    --muted-foreground: #ab9f8e;
+    --accent: rgba(243, 181, 98, 0.18);
+    --accent-foreground: #fbe6c4;
+    --destructive: #ff9a8a;
+    --destructive-foreground: #1a0a09;
+    --border: rgba(255, 214, 160, 0.14);
+    --input: rgba(255, 214, 160, 0.19);
+    --ring: #f3b562;
+    --brand: #f3b562;
+    --blob-1: rgba(243, 181, 98, 0.16);
+    --blob-2: rgba(214, 110, 50, 0.16);
+    --shadow-panel: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --chart-1: #f3b562;
+    --chart-2: #7ee0a8;
+    --chart-3: #ff9a6e;
+    --chart-4: #8ec5ff;
+    --chart-5: #d9a7ff;
   }
 }
 

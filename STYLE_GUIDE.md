@@ -1,6 +1,6 @@
-# Feedoku Style Guide
+# Lookfar Style Guide
 
-A portable design system: **warm paper canvas, indigo ink, lavender accent, hairline translucent borders, glass panels, fully rounded controls, heavy tight headlines.** Built on Tailwind CSS v4 + shadcn/ui (new-york). Palette adapted from the YOU/ME design system (you.brainfogagency.com).
+A portable design system: **one warm amber hue family (brown-black canvas, pale-amber primary, amber accent; cream paper and espresso ink in light mode), hairline translucent borders, glass panels, fully rounded controls, heavy tight headlines.** Built on Tailwind CSS v4 + shadcn/ui (new-york). The palette is Lookfar's own: it deliberately does not reuse the lavender of the Avni site or the teal of Upzy. Like those two, every colour comes from a single hue family, so the background, primary and accent always belong together.
 
 Everything below is copy-pasteable. To reuse in another project, follow [Quick start](#9-quick-start-for-a-new-project).
 
@@ -12,7 +12,7 @@ Everything below is copy-pasteable. To reuse in another project, follow [Quick s
 2. **Soft surfaces, hairline edges.** Panels are translucent "glass" with a 1px low-contrast border and a large, soft shadow. Never hard black borders.
 3. **Round everything interactive.** Buttons and inputs are pills (`rounded-full`); cards are `rounded-3xl`; big feature blocks `rounded-[2rem]`.
 4. **Heavy headlines, quiet body.** Extra-bold, tightly tracked display type; regular muted body text.
-5. **One accent.** Indigo-lavender (`--brand`) is used sparingly: eyebrow labels, key words in headlines, unread dots.
+5. **One accent.** Amber (`--brand`) is used sparingly: eyebrow labels, key words in headlines, unread dots.
 6. **Honest UI.** Features that don't exist yet are labelled "Coming soon", never implied.
 
 ---
@@ -23,28 +23,28 @@ All colours are CSS variables holding **full colour values** (hex/rgba, not HSL 
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `background` | `#f6f3ee` | `#0d0e11` | Page canvas (warm paper / near-black ink) |
-| `foreground` | `#15171c` | `#f4f2ed` | Body text |
-| `card` / `popover` | `#ffffff` | `#1a1b20` | Surfaces (used at 60–80% opacity for glass) |
-| `primary` | `#2e2a4a` | `#dad5ee` | Primary buttons, logo mark, dark feature blocks |
-| `primary-foreground` | `#ffffff` | `#15171c` | Text on primary |
-| `secondary` / `muted` | `rgba(21,23,28,.05)` | `rgba(255,255,255,.05–.06)` | Quiet fills |
-| `muted-foreground` | `#5a5e66` | `#a7a49c` | Secondary text |
-| `accent` | `rgba(125,116,176,.16)` | `rgba(125,116,176,.26)` | Hover/selected wash (lavender) |
-| `accent-foreground` | `#2e2a4a` | `#ece9f6` | Text on accent |
-| `brand` | `#5b52a0` | `#c9c2ec` | The single accent colour (text, dots, icons) |
-| `border` | `rgba(21,23,28,.12)` | `rgba(255,255,255,.12)` | Hairlines |
-| `input` | `rgba(21,23,28,.16)` | `rgba(255,255,255,.16)` | Input borders |
-| `ring` | `#5b52a0` | `#c9c2ec` | Focus ring |
-| `destructive` | `#a11f16` | `#ffa69b` | Errors (`destructive-foreground`: `#fff` / `#15171c`) |
+| `background` | `#fbf5eb` | `#0f0b07` | Page canvas (cream paper / warm brown-black) |
+| `foreground` | `#1f1710` | `#f7efe4` | Body text |
+| `card` / `popover` | `#ffffff` | `#1c150e` | Surfaces (used at 60–80% opacity for glass) |
+| `primary` | `#3b2412` | `#f5d9ae` | Primary buttons, logo mark, feature blocks (espresso in light, pale amber in dark) |
+| `primary-foreground` | `#ffffff` | `#1c1206` | Text on primary |
+| `secondary` / `muted` | `rgba(31,23,16,.05)` | `rgba(255,214,160,.05–.07)` | Quiet fills |
+| `muted-foreground` | `#6b5d4e` | `#ab9f8e` | Secondary text |
+| `accent` | `rgba(214,120,20,.16)` | `rgba(243,181,98,.18)` | Hover/selected wash (amber) |
+| `accent-foreground` | `#5a3208` | `#fbe6c4` | Text on accent |
+| `brand` | `#b45f06` | `#f3b562` | The single accent colour (text, dots, icons) |
+| `border` | `rgba(31,23,16,.12)` | `rgba(255,214,160,.14)` | Hairlines |
+| `input` | `rgba(31,23,16,.17)` | `rgba(255,214,160,.19)` | Input borders |
+| `ring` | `#b45f06` | `#f3b562` | Focus ring |
+| `destructive` | `#b3261e` | `#ff9a8a` | Errors (`destructive-foreground`: `#fff` / `#1a0a09`) |
 
-Status colours from the source system, if you need them: ok `#12602f`/`#8be0ae`, warn `#7a4600`/`#f6c877`, bad `#a11f16`/`#ffa69b`, info `#23408e`/`#b4c6ff` (light / dark).
+Status colours, if you need them (light / dark): ok `#15795a`/`#7ee0a8`, warn `#b45f06`/`#f3b562`, bad `#b3261e`/`#ff9a8a`, info `#1d4ed8`/`#8ec5ff`. Diff additions use `chart-2` (green) and deletions use `destructive`.
 
 **Rules**
 - Text on `background`: `foreground` or `muted-foreground` only.
 - Never use pure black/white or Tailwind greys (`gray-*`, `zinc-*`); use tokens.
 - Use opacity modifiers for glass and washes (`bg-card/70`, `bg-accent/60`), not new colours.
-- Dark mode is a first-class theme (class strategy), not an inversion: `primary` flips to light lavender.
+- Dark mode is a first-class theme (class strategy), not an inversion: `primary` flips from espresso to pale amber.
 
 ---
 
@@ -105,7 +105,7 @@ The signature surface. Always on top of the `.ambient` background.
 ```
 
 - Border comes from the global `* { @apply border-border }` rule.
-- Wrap the page (or app shell) in `class="ambient"` to get the lavender blobs behind the glass.
+- Wrap the page (or app shell) in `class="ambient"` to get the amber glows behind the glass.
 - Floating pill nav: `fixed inset-x-0 top-0 px-3 pt-3` → inner `mx-auto h-14 max-w-5xl rounded-full border bg-card/70 backdrop-blur-xl shadow-[var(--shadow-panel)]`.
 
 ---
@@ -117,7 +117,7 @@ Defined once via `cva`; **use `asChild` + `Link`/`a` for navigation**.
 
 | Variant | Look | Use |
 |---|---|---|
-| `default` | indigo `primary` fill | Primary action (one per view) |
+| `default` | `primary` fill (espresso in light mode, pale amber in dark) | Primary action (one per view) |
 | `outline` | hairline border, `bg-card/60` | Secondary action next to a primary |
 | `secondary` | quiet fill | Tertiary |
 | `ghost` | transparent, `accent` on hover | Toolbars, nav items, icon buttons |
@@ -180,7 +180,7 @@ export function Logo({ className, tone = 'default', markOnly }:
       </span>
       {!markOnly && (
         <span className="text-[1.4rem] leading-none font-extrabold tracking-tighter">
-          Feedoku<span className={inverted ? 'opacity-60' : 'text-brand'}>.</span>
+          Lookfar<span className={inverted ? 'opacity-60' : 'text-brand'}>.</span>
         </span>
       )}
     </span>
@@ -188,15 +188,15 @@ export function Logo({ className, tone = 'default', markOnly }:
 }
 ```
 
-Favicon / app icon (`app/icon.svg`, Next picks it up automatically):
+Favicon / app icon (`static/favicon.svg`):
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="9" fill="#2e2a4a"/>
+  <rect width="32" height="32" rx="9" fill="#1c150e"/>
   <g transform="translate(3.2 3.2) scale(.8)" stroke-linecap="round">
-    <circle cx="9.5" cy="22.5" r="3.6" fill="#fff"/>
-    <path d="M6.5 12.2a13.3 13.3 0 0 1 13.3 13.3" stroke="#fff" stroke-width="4.6"/>
-    <path d="M6.5 4.6A20.9 20.9 0 0 1 27.4 25.5" stroke="#c9c2ec" stroke-width="4.6"/>
+    <circle cx="9.5" cy="22.5" r="3.6" fill="#f7efe4"/>
+    <path d="M6.5 12.2a13.3 13.3 0 0 1 13.3 13.3" stroke="#f7efe4" stroke-width="4.6"/>
+    <path d="M6.5 4.6A20.9 20.9 0 0 1 27.4 25.5" stroke="#f3b562" stroke-width="4.6"/>
   </g>
 </svg>
 ```
@@ -252,61 +252,72 @@ Clear space: at least the height of the dot on all sides. Minimum mark size 20px
 }
 
 @layer base {
+  /* Lookfar palette ("ember"): one warm amber hue family throughout. The dark
+     canvas is a brown-black, the primary a pale amber, the accent amber; light
+     mode is cream paper with espresso ink. Hairline translucent edges. */
   :root {
     color-scheme: light;
-    --background: #f6f3ee;
-    --foreground: #15171c;
+    --background: #fbf5eb;
+    --foreground: #1f1710;
     --card: #ffffff;
-    --card-foreground: #15171c;
+    --card-foreground: #1f1710;
     --popover: #ffffff;
-    --popover-foreground: #15171c;
-    --primary: #2e2a4a;
+    --popover-foreground: #1f1710;
+    --primary: #3b2412;
     --primary-foreground: #ffffff;
-    --secondary: rgba(21, 23, 28, 0.05);
-    --secondary-foreground: #2e2a4a;
-    --muted: rgba(21, 23, 28, 0.05);
-    --muted-foreground: #5a5e66;
-    --accent: rgba(125, 116, 176, 0.16);
-    --accent-foreground: #2e2a4a;
-    --destructive: #a11f16;
+    --secondary: rgba(31, 23, 16, 0.05);
+    --secondary-foreground: #3b2412;
+    --muted: rgba(31, 23, 16, 0.05);
+    --muted-foreground: #6b5d4e;
+    --accent: rgba(214, 120, 20, 0.16);
+    --accent-foreground: #5a3208;
+    --destructive: #b3261e;
     --destructive-foreground: #ffffff;
-    --border: rgba(21, 23, 28, 0.12);
-    --input: rgba(21, 23, 28, 0.16);
-    --ring: #5b52a0;
-    --brand: #5b52a0;
-    --blob-1: #ece9f6;
-    --blob-2: rgba(218, 213, 238, 0.55);
-    --shadow-panel: 0 12px 40px rgba(40, 36, 60, 0.1);
+    --border: rgba(31, 23, 16, 0.12);
+    --input: rgba(31, 23, 16, 0.17);
+    --ring: #b45f06;
+    --brand: #b45f06;
+    --blob-1: #fbe3b8;
+    --blob-2: rgba(236, 170, 100, 0.35);
+    --shadow-panel: 0 12px 40px rgba(59, 36, 18, 0.12);
     --radius: 0.75rem;
-    --chart-1: #5b52a0; --chart-2: #15795a; --chart-3: #ff5a1f; --chart-4: #1e4fa3; --chart-5: #a02457;
+    --chart-1: #b45f06;
+    --chart-2: #15795a;
+    --chart-3: #c2410c;
+    --chart-4: #1d4ed8;
+    --chart-5: #7c3aed;
   }
 
   .dark {
     color-scheme: dark;
-    --background: #0d0e11;
-    --foreground: #f4f2ed;
-    --card: #1a1b20;
-    --card-foreground: #f4f2ed;
-    --popover: #1a1b20;
-    --popover-foreground: #f4f2ed;
-    --primary: #dad5ee;
-    --primary-foreground: #15171c;
-    --secondary: rgba(255, 255, 255, 0.06);
-    --secondary-foreground: #ece9f6;
-    --muted: rgba(255, 255, 255, 0.05);
-    --muted-foreground: #a7a49c;
-    --accent: rgba(125, 116, 176, 0.26);
-    --accent-foreground: #ece9f6;
-    --destructive: #ffa69b;
-    --destructive-foreground: #15171c;
-    --border: rgba(255, 255, 255, 0.12);
-    --input: rgba(255, 255, 255, 0.16);
-    --ring: #c9c2ec;
-    --brand: #c9c2ec;
-    --blob-1: rgba(125, 116, 176, 0.26);
-    --blob-2: rgba(218, 213, 238, 0.12);
-    --shadow-panel: 0 12px 40px rgba(0, 0, 0, 0.45);
-    --chart-1: #c9c2ec; --chart-2: #3dd994; --chart-3: #ffc2aa; --chart-4: #b5caee; --chart-5: #ffe1ed;
+    --background: #0f0b07;
+    --foreground: #f7efe4;
+    --card: #1c150e;
+    --card-foreground: #f7efe4;
+    --popover: #1c150e;
+    --popover-foreground: #f7efe4;
+    --primary: #f5d9ae;
+    --primary-foreground: #1c1206;
+    --secondary: rgba(255, 214, 160, 0.07);
+    --secondary-foreground: #f3e3cb;
+    --muted: rgba(255, 214, 160, 0.05);
+    --muted-foreground: #ab9f8e;
+    --accent: rgba(243, 181, 98, 0.18);
+    --accent-foreground: #fbe6c4;
+    --destructive: #ff9a8a;
+    --destructive-foreground: #1a0a09;
+    --border: rgba(255, 214, 160, 0.14);
+    --input: rgba(255, 214, 160, 0.19);
+    --ring: #f3b562;
+    --brand: #f3b562;
+    --blob-1: rgba(243, 181, 98, 0.16);
+    --blob-2: rgba(214, 110, 50, 0.16);
+    --shadow-panel: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --chart-1: #f3b562;
+    --chart-2: #7ee0a8;
+    --chart-3: #ff9a6e;
+    --chart-4: #8ec5ff;
+    --chart-5: #d9a7ff;
   }
 }
 
@@ -316,7 +327,7 @@ Clear space: at least the height of the dot on all sides. Minimum mark size 20px
 }
 
 @layer components {
-  /* Soft lavender blobs behind glass panels. Add class="ambient" to a page wrapper. */
+  /* Soft amber glows behind glass panels. Add class="ambient" to a page wrapper. */
   .ambient::before {
     content: '';
     position: fixed;
