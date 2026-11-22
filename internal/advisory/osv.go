@@ -299,10 +299,19 @@ func (o *OSV) write(ctx context.Context, sourceID int64, st *OSVStats, payloads,
 			return fmt.Errorf("parse OSV record %s: %w", id, err)
 		}
 		adv := normalizeOSV(v)
-		canonical[id] = adv.ID
+		// Write-time guard: another row may already hold this vulnerability under a
+		// different id (for example the CVE row that lists this GHSA as an alias).
+		target, others, err := ResolveCanonical(ctx, q, adv.ID, adv.Aliases)
+		if err != nil {
+			return err
+		}
+		canonical[id] = target
 
 		raw, isFetched := fetched[id]
 		if !isFetched {
+			if _, err := Absorb(ctx, q, target, others); err != nil {
+				return err
+			}
 			continue
 		}
 		if _, err := q.UpsertRawItem(ctx, store.UpsertRawItemParams{
@@ -315,11 +324,14 @@ func (o *OSV) write(ctx context.Context, sourceID int64, st *OSVStats, payloads,
 			cv = pgtype.Float8{Float64: *adv.CVSS, Valid: true}
 		}
 		inserted, err := q.UpsertOSVAdvisory(ctx, store.UpsertOSVAdvisoryParams{
-			ID: adv.ID, Aliases: adv.Aliases, Summary: adv.Summary, Severity: adv.Severity, Cvss: cv,
+			ID: target, Aliases: withAlias(adv.Aliases, target, adv.ID), Summary: adv.Summary, Severity: adv.Severity, Cvss: cv,
 			Affected: adv.Affected, Refs: adv.References, ModifiedAt: adv.ModifiedAt, OsvID: id,
 		})
 		if err != nil {
 			return fmt.Errorf("store advisory %s: %w", adv.ID, err)
+		}
+		if _, err := Absorb(ctx, q, target, others); err != nil {
+			return err
 		}
 		if inserted {
 			st.AdvisoriesNew++

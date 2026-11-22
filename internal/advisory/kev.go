@@ -181,11 +181,18 @@ func (k *KEV) store(ctx context.Context, sourceID int64, entries []kevRaw) (Resu
 		}
 
 		adv := normalizeKEV(r.Entry)
+		target, others, err := ResolveCanonical(ctx, q, adv.ID, nil)
+		if err != nil {
+			return res, err
+		}
 		if err := q.UpsertKEVAdvisory(ctx, store.UpsertKEVAdvisoryParams{
-			ID: adv.ID, Summary: adv.Summary, ExploitedSince: adv.ExploitedSince,
+			ID: target, Summary: adv.Summary, ExploitedSince: adv.ExploitedSince,
 			Affected: adv.Affected, Refs: adv.References,
 		}); err != nil {
 			return res, fmt.Errorf("store advisory %s: %w", adv.ID, err)
+		}
+		if _, err := Absorb(ctx, q, target, others); err != nil {
+			return res, err
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {

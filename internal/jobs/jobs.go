@@ -34,7 +34,7 @@ type Job struct {
 
 // Registry lists every job that `lookfar run` knows about.
 func Registry() map[string]Job {
-	jobs := []Job{heartbeatJob, stackSyncJob, collectKEVJob, collectOSVJob, collectNVDJob}
+	jobs := []Job{heartbeatJob, stackSyncJob, collectKEVJob, collectOSVJob, collectNVDJob, dedupeJob}
 	m := make(map[string]Job, len(jobs))
 	for _, j := range jobs {
 		m[j.Name] = j
@@ -57,9 +57,10 @@ func NewWorkers(logger *slog.Logger, pool *pgxpool.Pool, opts Options) *river.Wo
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &HeartbeatWorker{Logger: logger})
 	river.AddWorker(workers, &StackSyncWorker{Logger: logger, Pool: pool, Source: opts.Stack, ChainOSV: opts.Serve})
-	river.AddWorker(workers, &CollectOSVWorker{Logger: logger, Collector: newOSVCollector(pool, opts), ChainNVD: opts.Serve})
-	river.AddWorker(workers, &CollectNVDWorker{Logger: logger, Collector: newNVDCollector(pool, opts)})
-	river.AddWorker(workers, &CollectKEVWorker{Logger: logger, Collector: newKEVCollector(pool, opts)})
+	river.AddWorker(workers, &CollectOSVWorker{Logger: logger, Collector: newOSVCollector(pool, opts), ChainNVD: opts.Serve, ChainDedupe: opts.Serve})
+	river.AddWorker(workers, &CollectNVDWorker{Logger: logger, Collector: newNVDCollector(pool, opts), ChainDedupe: opts.Serve})
+	river.AddWorker(workers, &DedupeWorker{Logger: logger, Pool: pool})
+	river.AddWorker(workers, &CollectKEVWorker{Logger: logger, Collector: newKEVCollector(pool, opts), ChainDedupe: opts.Serve})
 	return workers
 }
 
@@ -85,6 +86,12 @@ func PeriodicJobs() []*river.PeriodicJob {
 			river.PeriodicInterval(24*time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return CollectNVDArgs{}, nil },
 			&river.PeriodicJobOpts{RunOnStart: true},
+		),
+		// Safety net: collectors dedupe at write time and chain a run, this catches the rest.
+		river.NewPeriodicJob(
+			river.PeriodicInterval(24*time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return DedupeArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: false},
 		),
 		// KEV is conditional-GET cheap (a 304 when unchanged), so running at start is fine.
 		river.NewPeriodicJob(

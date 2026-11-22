@@ -97,6 +97,7 @@ tasks:
       - go run ./cmd/lookfar run collect_osv
       - go run ./cmd/lookfar run collect_nvd
       - go run ./cmd/lookfar run collect_nvd
+      - go run ./cmd/lookfar run dedupe_advisories
 
   db:
     desc: Start Postgres in Docker and wait until it is healthy

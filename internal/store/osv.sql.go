@@ -118,7 +118,8 @@ VALUES ($1, $2::text[], $3, $4,
 ON CONFLICT (id) DO UPDATE SET
     aliases     = (SELECT COALESCE(array_agg(DISTINCT a ORDER BY a), '{}') FROM unnest(advisories.aliases || EXCLUDED.aliases) a),
     summary     = CASE WHEN advisories.summary = '' THEN EXCLUDED.summary ELSE advisories.summary END,
-    severity    = CASE WHEN EXCLUDED.severity = 'unknown' THEN advisories.severity ELSE EXCLUDED.severity END,
+    severity    = CASE WHEN EXCLUDED.severity = 'unknown' OR (EXCLUDED.cvss IS NULL AND advisories.cvss IS NOT NULL)
+                       THEN advisories.severity ELSE EXCLUDED.severity END, -- a bare label never overrides a score
     cvss        = COALESCE(EXCLUDED.cvss, advisories.cvss),
     affected    = (SELECT COALESCE(jsonb_agg(e), '[]'::jsonb) FROM jsonb_array_elements(advisories.affected) e
                    WHERE NOT (e->>'source' = 'osv' AND e->>'osvId' = $9::text)) || EXCLUDED.affected,

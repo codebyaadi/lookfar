@@ -306,11 +306,34 @@ func (n *NVD) writeMatches(ctx context.Context, matched map[string]nvdCVE, compI
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	targets := map[string]string{} // CVE id -> advisory id after the write-time guard
 	for _, id := range ids {
-		if err := upsertNVDAdvisory(ctx, q, id, normalizeNVD(matched[id])); err != nil {
+		target, others, err := ResolveCanonical(ctx, q, id, nil)
+		if err != nil {
+			return err
+		}
+		targets[id] = target
+		if err := upsertNVDAdvisory(ctx, q, target, normalizeNVD(matched[id])); err != nil {
+			return err
+		}
+		if _, err := Absorb(ctx, q, target, others); err != nil {
 			return err
 		}
 	}
+	// Map to the resolved ids and drop pairs that collapse onto the same row.
+	seen := map[[2]string]bool{}
+	var cids []int64
+	var aids []string
+	for i, id := range advIDs {
+		key := [2]string{strconv.FormatInt(compIDs[i], 10), targets[id]}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		cids = append(cids, compIDs[i])
+		aids = append(aids, targets[id])
+	}
+	compIDs, advIDs = cids, aids
 	if _, err := q.UpsertComponentAdvisories(ctx, store.UpsertComponentAdvisoriesParams{
 		Source: "nvd", ComponentIds: compIDs, AdvisoryIds: advIDs,
 	}); err != nil {

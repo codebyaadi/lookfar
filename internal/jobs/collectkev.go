@@ -31,6 +31,8 @@ type CollectKEVWorker struct {
 	river.WorkerDefaults[CollectKEVArgs]
 	Logger    *slog.Logger
 	Collector advisory.Collector
+	// ChainDedupe queues dedupe_advisories after a successful run (serve only).
+	ChainDedupe bool
 }
 
 // Work implements river.Worker.
@@ -42,6 +44,9 @@ func (w *CollectKEVWorker) Work(ctx context.Context, _ *river.Job[CollectKEVArgs
 	}
 	w.Logger.Info("collected KEV", "fetched", res.Fetched, "new", res.New, "updated", res.Updated,
 		"unchanged", res.Unchanged, "not_modified", res.NotModified)
+	if w.ChainDedupe {
+		enqueueDedupe(ctx, w.Logger)
+	}
 	return nil
 }
 

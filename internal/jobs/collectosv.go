@@ -38,6 +38,8 @@ type CollectOSVWorker struct {
 	river.WorkerDefaults[CollectOSVArgs]
 	Logger    *slog.Logger
 	Collector OSVCollector
+	// ChainDedupe queues dedupe_advisories after a successful run (serve only).
+	ChainDedupe bool
 	// ChainNVD enqueues collect_nvd after a successful run (serve only).
 	ChainNVD bool
 }
@@ -51,6 +53,9 @@ func (w *CollectOSVWorker) Work(ctx context.Context, _ *river.Job[CollectOSVArgs
 	}
 	w.Logger.Info("collected OSV", "queried", st.ComponentsQueried, "skipped", st.ComponentsSkipped,
 		"vulns", st.VulnsFound, "details", st.DetailsFetched, "new", st.AdvisoriesNew, "updated", st.AdvisoriesUpdated)
+	if w.ChainDedupe {
+		enqueueDedupe(ctx, w.Logger)
+	}
 	if w.ChainNVD {
 		if c, cerr := river.ClientFromContextSafely[pgx.Tx](ctx); cerr == nil {
 			if _, ierr := c.Insert(ctx, CollectNVDArgs{}, chainOpts()); ierr != nil {

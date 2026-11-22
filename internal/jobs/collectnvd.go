@@ -46,6 +46,8 @@ type CollectNVDWorker struct {
 	river.WorkerDefaults[CollectNVDArgs]
 	Logger    *slog.Logger
 	Collector NVDCollector
+	// ChainDedupe queues dedupe_advisories after a successful run (serve only).
+	ChainDedupe bool
 }
 
 // Work implements river.Worker. A long run is expected without an API key
@@ -58,6 +60,9 @@ func (w *CollectNVDWorker) Work(ctx context.Context, _ *river.Job[CollectNVDArgs
 	}
 	w.Logger.Info("collected NVD", "servers", st.ServersQueried, "cves", st.CVEsScanned, "matches", st.Matches,
 		"enriched", st.Enriched, "skipped_rate_limited", st.SkippedRateLimited)
+	if w.ChainDedupe {
+		enqueueDedupe(ctx, w.Logger)
+	}
 	return nil
 }
 
