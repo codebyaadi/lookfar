@@ -1,0 +1,15 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "demo",
+  "documentNamespace": "https://example.com/demo",
+  "creationInfo": { "created": "2026-01-01T00:00:00Z", "creators": ["Tool: test"] },
+  "packages": [
+    {
+      "name": "express", "SPDXID": "SPDXRef-Package-express", "versionInfo": "4.18.2",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [ { "referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:npm/express@4.18.2" } ]
+    }
+  ]
+}

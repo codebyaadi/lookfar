@@ -1,0 +1,18 @@
+[[package]]
+name = "requests"
+version = "2.31.0"
+description = "HTTP"
+optional = false
+python-versions = ">=3.7"
+
+[[package]]
+name = "Flask-Login"
+version = "0.6.3"
+description = "login"
+optional = false
+python-versions = ">=3.7"
+
+[metadata]
+lock-version = "2.0"
+python-versions = "^3.11"
+content-hash = "abc"
