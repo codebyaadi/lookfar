@@ -85,7 +85,7 @@ tasks:
       - go test -tags integration -count=1 -p 1 ./...
 
   smoke:
-    desc: Opt-in live smoke test (hits cisa.gov and osv.dev, needs Docker Postgres); not part of check
+    desc: Opt-in live smoke test (hits cisa.gov, osv.dev and nvd.nist.gov (slow without NVD_API_KEY), needs Docker Postgres); not part of check
     env:
       DATABASE_URL: postgres://lookfar:lookfar@localhost:5432/lookfar?sslmode=disable
     cmds:
@@ -95,6 +95,8 @@ tasks:
       - go run ./cmd/lookfar run stack_sync --config internal/stack/testdata/lookfar.sample.yaml
       - go run ./cmd/lookfar run collect_osv
       - go run ./cmd/lookfar run collect_osv
+      - go run ./cmd/lookfar run collect_nvd
+      - go run ./cmd/lookfar run collect_nvd
 
   db:
     desc: Start Postgres in Docker and wait until it is healthy

@@ -97,7 +97,7 @@ func (w *StackSyncWorker) Work(ctx context.Context, _ *river.Job[StackSyncArgs])
 		"updated", sum.Updated, "deactivated", sum.Deactivated, "file_errors", len(sum.FileErrors))
 	if w.ChainOSV {
 		if c, cerr := river.ClientFromContextSafely[pgx.Tx](ctx); cerr == nil {
-			if _, ierr := c.Insert(ctx, CollectOSVArgs{}, osvChainOpts()); ierr != nil {
+			if _, ierr := c.Insert(ctx, CollectOSVArgs{}, chainOpts()); ierr != nil {
 				w.Logger.Warn("could not enqueue collect_osv", "error", ierr)
 			}
 		}

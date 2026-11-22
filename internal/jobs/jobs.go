@@ -13,6 +13,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivertype"
+	"golang.org/x/time/rate"
 
 	"github.com/codebyaadi/lookfar/internal/store"
 )
@@ -33,7 +34,7 @@ type Job struct {
 
 // Registry lists every job that `lookfar run` knows about.
 func Registry() map[string]Job {
-	jobs := []Job{heartbeatJob, stackSyncJob, collectKEVJob, collectOSVJob}
+	jobs := []Job{heartbeatJob, stackSyncJob, collectKEVJob, collectOSVJob, collectNVDJob}
 	m := make(map[string]Job, len(jobs))
 	for _, j := range jobs {
 		m[j.Name] = j
@@ -56,7 +57,8 @@ func NewWorkers(logger *slog.Logger, pool *pgxpool.Pool, opts Options) *river.Wo
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &HeartbeatWorker{Logger: logger})
 	river.AddWorker(workers, &StackSyncWorker{Logger: logger, Pool: pool, Source: opts.Stack, ChainOSV: opts.Serve})
-	river.AddWorker(workers, &CollectOSVWorker{Logger: logger, Collector: newOSVCollector(pool, opts)})
+	river.AddWorker(workers, &CollectOSVWorker{Logger: logger, Collector: newOSVCollector(pool, opts), ChainNVD: opts.Serve})
+	river.AddWorker(workers, &CollectNVDWorker{Logger: logger, Collector: newNVDCollector(pool, opts)})
 	river.AddWorker(workers, &CollectKEVWorker{Logger: logger, Collector: newKEVCollector(pool, opts)})
 	return workers
 }
@@ -77,6 +79,11 @@ func PeriodicJobs() []*river.PeriodicJob {
 		river.NewPeriodicJob(
 			river.PeriodicInterval(12*time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return CollectOSVArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: true},
+		),
+		river.NewPeriodicJob(
+			river.PeriodicInterval(24*time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return CollectNVDArgs{}, nil },
 			&river.PeriodicJobOpts{RunOnStart: true},
 		),
 		// KEV is conditional-GET cheap (a 304 when unchanged), so running at start is fine.
@@ -101,6 +108,14 @@ type Options struct {
 	KEVURL string
 	// OSVURL overrides the OSV API base URL (tests only).
 	OSVURL string
+	// NVDURL overrides the NVD API endpoint (tests only).
+	NVDURL string
+	// NVDAPIKey is the optional NVD API key; empty falls back to $NVD_API_KEY.
+	NVDAPIKey string
+	// NoPeriodic disables the periodic schedule (tests that drive jobs by hand).
+	NoPeriodic bool
+	// NVDLimiter overrides the NVD request limiter (tests only).
+	NVDLimiter *rate.Limiter
 }
 
 // NewClient builds a River client whose jobs are recorded in the runs table.
@@ -109,11 +124,15 @@ func NewClient(pool *pgxpool.Pool, logger *slog.Logger, opts Options) (*Client, 
 	cfg := &river.Config{
 		Logger:  logger,
 		Workers: NewWorkers(logger, pool, opts),
+		// River defaults to a one-minute job timeout, too short for collectors.
+		JobTimeout: 10 * time.Minute,
 	}
 	cfg.Plugins = []rivertype.Plugin{RunLogMiddleware(StoreRunLog{Q: store.New(pool)}, logf)}
 	if opts.Serve {
 		cfg.Queues = map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 10}}
-		cfg.PeriodicJobs = PeriodicJobs()
+		if !opts.NoPeriodic {
+			cfg.PeriodicJobs = PeriodicJobs()
+		}
 	} else {
 		cfg.Queues = map[string]river.QueueConfig{QueueManual: {MaxWorkers: 2}}
 	}

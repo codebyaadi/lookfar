@@ -6,40 +6,72 @@ import (
 	"unicode"
 )
 
+// CPEPair is a vendor and product as spelled in NVD's CPE dictionary.
+type CPEPair struct{ Vendor, Product string }
+
 // Server is a curated server-software entry used for CPE-based matching (NVD).
-// Vendor and Product follow NVD's CPE dictionary naming.
 type Server struct {
 	// Name is the canonical name, used in the purl: pkg:generic/<name>@<version>.
 	Name    string
 	Aliases []string
-	Vendor  string
-	Product string
+	// CPEs lists every vendor:product spelling NVD uses for this software,
+	// current name first (it becomes Component.CPE). Older CVEs often use a
+	// historic vendor name, so all of them are queried and matched.
+	CPEs []CPEPair
 }
 
-// servers is the curated list. Entries marked "unsure" were written from
-// memory of the NVD CPE dictionary and should be verified against it before
-// the NVD collector (M2-3) relies on them.
+// Primary returns the current vendor:product pair.
+func (s Server) Primary() CPEPair { return s.CPEs[0] }
+
+// servers is the curated list.
+//
+// The CPE pairs were checked against the live NVD CPE-match API on 2026-11-22
+// (virtualMatchString=cpe:2.3:a:<vendor>:<product>, totalResults in brackets):
+//
+//	valkey:valkey [0]  valkey-io:valkey [0]   no CPE exists yet; both are kept so
+//	                                          matching starts working once NVD adds one
+//	caddyserver:caddy [20]  caddy:caddy [0]
+//	traefik:traefik [84]    traefik_labs:traefik [0]
+//	vmware:rabbitmq [6]  pivotal_software:rabbitmq [11]  broadcom:rabbitmq [0]  rabbitmq:rabbitmq [0]
+//	redis:redis [46]  redislabs:redis [22]
+//	f5:nginx [41]  nginx:nginx [2]  igor_sysoev:nginx [0]
+//
+// and, for the rest: postgresql:postgresql [209], oracle:mysql [1328],
+// mariadb:mariadb [431], mongodb:mongodb [189], apache:http_server [372],
+// haproxy:haproxy [36], nodejs:node.js [189], python:python [145],
+// openssl:openssl [330], openbsd:openssh [147], elastic:elasticsearch [91],
+// apache:kafka [17], memcached:memcached [21], grafana:grafana [104].
 var servers = []Server{
-	{Name: "postgresql", Aliases: []string{"postgres", "pg"}, Vendor: "postgresql", Product: "postgresql"},
-	{Name: "mysql", Vendor: "oracle", Product: "mysql"},
-	{Name: "mariadb", Vendor: "mariadb", Product: "mariadb"},
-	{Name: "redis", Vendor: "redis", Product: "redis"},    // older records use redislabs:redis
-	{Name: "valkey", Vendor: "valkey", Product: "valkey"}, // unsure: new project, vendor may be valkey-io
-	{Name: "mongodb", Aliases: []string{"mongo"}, Vendor: "mongodb", Product: "mongodb"},
-	{Name: "nginx", Vendor: "f5", Product: "nginx"}, // older records use igor_sysoev:nginx
-	{Name: "apache-httpd", Aliases: []string{"apache httpd", "httpd", "apache", "apache http server"}, Vendor: "apache", Product: "http_server"},
-	{Name: "caddy", Vendor: "caddyserver", Product: "caddy"}, // unsure
-	{Name: "haproxy", Vendor: "haproxy", Product: "haproxy"},
-	{Name: "traefik", Vendor: "traefik", Product: "traefik"}, // unsure: may be traefik_labs
-	{Name: "nodejs", Aliases: []string{"node.js", "node"}, Vendor: "nodejs", Product: "node.js"},
-	{Name: "python", Aliases: []string{"cpython"}, Vendor: "python", Product: "python"},
-	{Name: "openssl", Vendor: "openssl", Product: "openssl"},
-	{Name: "openssh", Vendor: "openbsd", Product: "openssh"},
-	{Name: "rabbitmq", Vendor: "vmware", Product: "rabbitmq"}, // unsure: pivotal_software, vmware or broadcom depending on year
-	{Name: "elasticsearch", Aliases: []string{"elastic search"}, Vendor: "elastic", Product: "elasticsearch"},
-	{Name: "kafka", Aliases: []string{"apache kafka"}, Vendor: "apache", Product: "kafka"},
-	{Name: "memcached", Vendor: "memcached", Product: "memcached"},
-	{Name: "grafana", Vendor: "grafana", Product: "grafana"},
+	{Name: "postgresql", Aliases: []string{"postgres", "pg"}, CPEs: cpes("postgresql:postgresql")},
+	{Name: "mysql", CPEs: cpes("oracle:mysql")},
+	{Name: "mariadb", CPEs: cpes("mariadb:mariadb")},
+	{Name: "redis", CPEs: cpes("redis:redis", "redislabs:redis")},
+	{Name: "valkey", CPEs: cpes("valkey:valkey", "valkey-io:valkey")},
+	{Name: "mongodb", Aliases: []string{"mongo"}, CPEs: cpes("mongodb:mongodb")},
+	{Name: "nginx", CPEs: cpes("f5:nginx", "nginx:nginx")},
+	{Name: "apache-httpd", Aliases: []string{"apache httpd", "httpd", "apache", "apache http server"}, CPEs: cpes("apache:http_server")},
+	{Name: "caddy", CPEs: cpes("caddyserver:caddy")},
+	{Name: "haproxy", CPEs: cpes("haproxy:haproxy")},
+	{Name: "traefik", CPEs: cpes("traefik:traefik")},
+	{Name: "nodejs", Aliases: []string{"node.js", "node"}, CPEs: cpes("nodejs:node.js")},
+	{Name: "python", Aliases: []string{"cpython"}, CPEs: cpes("python:python")},
+	{Name: "openssl", CPEs: cpes("openssl:openssl")},
+	{Name: "openssh", CPEs: cpes("openbsd:openssh")},
+	{Name: "rabbitmq", CPEs: cpes("vmware:rabbitmq", "pivotal_software:rabbitmq")},
+	{Name: "elasticsearch", Aliases: []string{"elastic search"}, CPEs: cpes("elastic:elasticsearch")},
+	{Name: "kafka", Aliases: []string{"apache kafka"}, CPEs: cpes("apache:kafka")},
+	{Name: "memcached", CPEs: cpes("memcached:memcached")},
+	{Name: "grafana", CPEs: cpes("grafana:grafana")},
+}
+
+// cpes builds pairs from "vendor:product" strings.
+func cpes(specs ...string) []CPEPair {
+	out := make([]CPEPair, len(specs))
+	for i, s := range specs {
+		v, p, _ := strings.Cut(s, ":")
+		out[i] = CPEPair{Vendor: v, Product: p}
+	}
+	return out
 }
 
 var serverIndex = buildServerIndex()
@@ -93,7 +125,8 @@ func (s Server) CPE(version string) string {
 	if version == "" {
 		version = "*"
 	}
-	return "cpe:2.3:a:" + s.Vendor + ":" + s.Product + ":" + escapeCPE(version) + ":*:*:*:*:*:*:*"
+	p := s.Primary()
+	return "cpe:2.3:a:" + p.Vendor + ":" + p.Product + ":" + escapeCPE(version) + ":*:*:*:*:*:*:*"
 }
 
 // escapeCPE escapes characters that are special in CPE 2.3 formatted strings.

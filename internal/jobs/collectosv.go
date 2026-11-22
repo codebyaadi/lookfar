@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
@@ -37,6 +38,8 @@ type CollectOSVWorker struct {
 	river.WorkerDefaults[CollectOSVArgs]
 	Logger    *slog.Logger
 	Collector OSVCollector
+	// ChainNVD enqueues collect_nvd after a successful run (serve only).
+	ChainNVD bool
 }
 
 // Work implements river.Worker.
@@ -48,6 +51,13 @@ func (w *CollectOSVWorker) Work(ctx context.Context, _ *river.Job[CollectOSVArgs
 	}
 	w.Logger.Info("collected OSV", "queried", st.ComponentsQueried, "skipped", st.ComponentsSkipped,
 		"vulns", st.VulnsFound, "details", st.DetailsFetched, "new", st.AdvisoriesNew, "updated", st.AdvisoriesUpdated)
+	if w.ChainNVD {
+		if c, cerr := river.ClientFromContextSafely[pgx.Tx](ctx); cerr == nil {
+			if _, ierr := c.Insert(ctx, CollectNVDArgs{}, chainOpts()); ierr != nil {
+				w.Logger.Warn("could not enqueue collect_nvd", "error", ierr)
+			}
+		}
+	}
 	return nil
 }
 
@@ -61,9 +71,9 @@ var collectOSVJob = Job{
 	},
 }
 
-// osvChainOpts makes the chained enqueue after stack_sync unique among jobs
+// chainOpts makes a chained enqueue (stack_sync -> collect_osv -> collect_nvd) unique among jobs
 // that have not finished, so a burst of syncs queues one collection.
-func osvChainOpts() *river.InsertOpts {
+func chainOpts() *river.InsertOpts {
 	return &river.InsertOpts{UniqueOpts: river.UniqueOpts{
 		ByArgs: true,
 		ByState: []rivertype.JobState{

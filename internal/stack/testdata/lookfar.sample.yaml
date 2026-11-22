@@ -7,6 +7,8 @@ stack:
     - path: Dockerfile
   components:
     - { name: postgresql, version: "16.4" }
+    - { name: postgresql, version: "11.5" }
+    - { name: nginx, version: "1.18.0" }
     - { name: Node.js, version: "22.1.0" }
     - { name: redis, version: "7.2", kind: image }
     - { name: stripe, kind: saas }

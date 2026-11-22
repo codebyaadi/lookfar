@@ -28,7 +28,7 @@ func TestCuratedListShape(t *testing.T) {
 		t.Errorf("want 20 curated entries, got %d", len(servers))
 	}
 	for _, s := range servers {
-		if s.Name == "" || s.Vendor == "" || s.Product == "" {
+		if s.Name == "" || len(s.CPEs) == 0 || s.CPEs[0].Vendor == "" || s.CPEs[0].Product == "" {
 			t.Errorf("incomplete entry: %+v", s)
 		}
 	}

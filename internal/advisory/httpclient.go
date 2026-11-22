@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -18,6 +19,8 @@ type Fetcher struct {
 	UserAgent  string
 	MaxRetries int           // retries after the first attempt
 	Backoff    time.Duration // first delay; doubles each retry
+	// RetryOn lists extra status codes to retry (NVD answers 403 when rate limited).
+	RetryOn []int
 }
 
 // NewFetcher returns a Fetcher with production defaults. Go's transport adds
@@ -63,7 +66,7 @@ func (f *Fetcher) Do(ctx context.Context, method, url string, header http.Header
 		switch {
 		case err != nil:
 			lastErr = err
-		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
+		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 || slices.Contains(f.RetryOn, resp.StatusCode):
 			lastErr = fmt.Errorf("%s %s: %s", method, url, resp.Status)
 			if s, perr := strconv.Atoi(resp.Header.Get("Retry-After")); perr == nil && s >= 0 {
 				wait = time.Duration(s) * time.Second
