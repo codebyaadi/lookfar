@@ -26,7 +26,7 @@ func TestVersion(t *testing.T) {
 }
 
 func TestPlaceholders(t *testing.T) {
-	for _, name := range []string{"serve", "run", "mcp", "token"} {
+	for _, name := range []string{"mcp", "token"} {
 		if got := run(t, name); got != "not implemented yet" {
 			t.Errorf("%s: got %q", name, got)
 		}

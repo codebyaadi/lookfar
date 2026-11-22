@@ -48,7 +48,7 @@ func newMigrateCmd() *cobra.Command {
 						fmt.Fprintln(cmd.OutOrStdout(), "no pending migrations")
 					}
 					for _, v := range vs {
-						fmt.Fprintf(cmd.OutOrStdout(), "applied %05d\n", v)
+						fmt.Fprintf(cmd.OutOrStdout(), "applied %s\n", v)
 					}
 					return nil
 				})
@@ -68,7 +68,10 @@ func newMigrateCmd() *cobra.Command {
 					for _, s := range st {
 						state := "pending"
 						if s.Applied {
-							state = "applied " + s.AppliedAt.Format("2006-01-02 15:04:05Z07:00")
+							state = "applied"
+							if !s.AppliedAt.IsZero() {
+								state += " " + s.AppliedAt.Format("2006-01-02 15:04:05Z07:00")
+							}
 						}
 						fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", s.Name, state)
 					}
@@ -100,7 +103,7 @@ func newMigrateDownCmd(connect func(*cobra.Command, func(context.Context, *pgxpo
 					fmt.Fprintln(cmd.OutOrStdout(), "nothing to roll back")
 				}
 				for _, v := range vs {
-					fmt.Fprintf(cmd.OutOrStdout(), "rolled back %05d\n", v)
+					fmt.Fprintf(cmd.OutOrStdout(), "rolled back %s\n", v)
 				}
 				return nil
 			})

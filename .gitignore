@@ -14,3 +14,4 @@ internal/webui/dist/*
 *.out
 .DS_Store
 Thumbs.db
+lookfar.yaml

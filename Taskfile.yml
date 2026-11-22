@@ -82,7 +82,7 @@ tasks:
   test:integration:
     desc: Run integration tests against Postgres in Docker (testcontainers)
     cmds:
-      - go test -tags integration -count=1 ./...
+      - go test -tags integration -count=1 -p 1 ./...
 
   db:
     desc: Start Postgres in Docker and wait until it is healthy

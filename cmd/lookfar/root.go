@@ -28,10 +28,10 @@ func newRootCmd() *cobra.Command {
 
 	root.AddCommand(
 		newVersionCmd(),
-		placeholder("serve", "Run the API, scheduler and workers"),
+		newServeCmd(),
 		newMigrateCmd(),
 		newConfigCmd(),
-		placeholder("run", "Run one job now"),
+		newRunCmd(),
 		placeholder("mcp", "Run the MCP server over stdio"),
 		placeholder("token", "Manage API tokens (create, list, revoke)"),
 	)

@@ -11,3 +11,8 @@ SELECT * FROM runs
 WHERE job = sqlc.arg(job)
 ORDER BY started_at DESC, id DESC
 LIMIT sqlc.arg(max_rows);
+
+-- name: FinishRun :exec
+UPDATE runs
+SET finished_at = now(), status = $2, stats = $3, error = $4
+WHERE id = $1;

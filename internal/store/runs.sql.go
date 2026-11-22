@@ -7,6 +7,9 @@ package store
 
 import (
 	"context"
+	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createRun = `-- name: CreateRun :one
@@ -34,6 +37,29 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (Run, erro
 		&i.Error,
 	)
 	return i, err
+}
+
+const finishRun = `-- name: FinishRun :exec
+UPDATE runs
+SET finished_at = now(), status = $2, stats = $3, error = $4
+WHERE id = $1
+`
+
+type FinishRunParams struct {
+	ID     int64
+	Status string
+	Stats  json.RawMessage
+	Error  pgtype.Text
+}
+
+func (q *Queries) FinishRun(ctx context.Context, arg FinishRunParams) error {
+	_, err := q.db.Exec(ctx, finishRun,
+		arg.ID,
+		arg.Status,
+		arg.Stats,
+		arg.Error,
+	)
+	return err
 }
 
 const getRun = `-- name: GetRun :one

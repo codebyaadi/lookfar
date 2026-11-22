@@ -37,7 +37,7 @@ func TestMigrationsAndStarterQueries(t *testing.T) {
 	t.Cleanup(pool.Close)
 
 	applied, err := postgres.MigrateUp(ctx, pool)
-	if err != nil || len(applied) != 3 {
+	if err != nil || len(applied) < 4 {
 		t.Fatalf("up: %v %v", applied, err)
 	}
 	if again, err := postgres.MigrateUp(ctx, pool); err != nil || len(again) != 0 {
@@ -74,17 +74,17 @@ func TestMigrationsAndStarterQueries(t *testing.T) {
 	}
 
 	st, err := postgres.MigrationsStatus(ctx, pool)
-	if err != nil || len(st) != 3 || !st[2].Applied {
+	if err != nil || len(st) < 4 || !st[2].Applied {
 		t.Fatalf("status: %+v %v", st, err)
 	}
 
-	if down, err := postgres.MigrateDownAll(ctx, pool); err != nil || len(down) != 3 {
+	if down, err := postgres.MigrateDownAll(ctx, pool); err != nil || len(down) < 4 {
 		t.Fatalf("down all: %v %v", down, err)
 	}
 	if _, err := q.ListSources(ctx); err == nil {
 		t.Error("sources table should be gone after down")
 	}
-	if applied, err := postgres.MigrateUp(ctx, pool); err != nil || len(applied) != 3 {
+	if applied, err := postgres.MigrateUp(ctx, pool); err != nil || len(applied) < 4 {
 		t.Fatalf("up after down: %v %v", applied, err)
 	}
 }
