@@ -1,0 +1,8 @@
+# build.cmd and build.entrypoint are passed by `task dev` (they differ on Windows).
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  include_ext = ["go", "sql", "yaml"]
+  exclude_dir = ["tmp", "bin", "web", "internal/webui/dist", ".planning", ".claude"]
+  delay = 500

@@ -1,0 +1,78 @@
+version: '3'
+
+# Run with `go tool task <name>` (pinned in go.mod), or `task <name>` if go-task is installed.
+
+vars:
+  BIN: bin/lookfar{{exeExt}}
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+
+tasks:
+  default:
+    cmds:
+      - go tool task --list
+    silent: true
+
+  check:
+    desc: Run every check (Go and web)
+    cmds:
+      - task: go:check
+      - task: web:check
+
+  go:check:
+    desc: gofmt, golangci-lint and go test
+    cmds:
+      - task: go:fmt-check
+      - go tool golangci-lint run ./...
+      - go test ./...
+
+  go:fmt-check:
+    internal: true
+    cmds:
+      - cmd: |
+          out=$(gofmt -l cmd internal)
+          if [ -n "$out" ]; then echo "gofmt needed:"; echo "$out"; exit 1; fi
+
+  web:install:
+    internal: true
+    dir: web
+    cmds:
+      - bun install --frozen-lockfile
+
+  web:check:
+    desc: Web lint, format check, typecheck and tests
+    dir: web
+    deps: [web:install]
+    cmds:
+      - bun run lint
+      - bun run format
+      - bun run check
+      - bun run test
+
+  web:build:
+    desc: Build the SPA into internal/webui/dist
+    dir: web
+    deps: [web:install]
+    cmds:
+      - bun run build
+
+  build:
+    desc: Build the web app and the lookfar binary into bin/
+    cmds:
+      - task: web:build
+      - go build -trimpath -ldflags "-s -w -X main.version={{.VERSION}}" -o {{.BIN}} ./cmd/lookfar
+
+  dev:
+    desc: Run lookfar serve with live reload (air)
+    cmds:
+      - go tool air --build.cmd "go build -o ./tmp/lookfar{{exeExt}} ./cmd/lookfar" --build.entrypoint "./tmp/lookfar{{exeExt}}" --build.args_bin serve
+
+  generate:
+    desc: Regenerate code (sqlc and the OpenAPI client land here in later tasks)
+    cmds:
+      - echo "nothing to generate yet"
+
+  db:
+    desc: Start Postgres in Docker and wait until it is healthy
+    cmds:
+      - docker compose up -d --wait postgres

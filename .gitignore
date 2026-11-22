@@ -1,0 +1,16 @@
+.planning/
+.env
+.env.*
+!.env.example
+bin/
+tmp/
+node_modules/
+web/.svelte-kit/
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
+.claude/
+*.exe
+*.test
+*.out
+.DS_Store
+Thumbs.db
