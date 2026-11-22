@@ -1,0 +1,22 @@
+# Copy to lookfar.yaml and edit. ${VAR} values are read from the environment.
+mission: "Only tell me about things actively exploited or that could phish my users."
+severity_threshold: high # low | medium | high | critical
+stack:
+  manifests:
+    - path: /repos/app/package-lock.json
+    - path: /repos/app/Dockerfile
+  components:
+    - { name: postgresql, version: "16.4" }
+    - { name: redis, version: "7.2" }
+    - { name: stripe, kind: saas }
+domains: [example.com, example.io]
+brand_terms: [example, examplepay]
+delivery:
+  email: { to: me@example.com, smtp_url: "${SMTP_URL}" }
+  webhook: { url: "https://hooks.example.com/lookfar", secret: "${WEBHOOK_SECRET}" }
+  digest: { day: monday, hour: 9, timezone: Asia/Kolkata }
+triage:
+  provider: anthropic # none | anthropic | openai
+  model: claude-haiku-5-5
+  api_key: "${LLM_API_KEY}"
+  daily_budget: 100 # max model calls per day

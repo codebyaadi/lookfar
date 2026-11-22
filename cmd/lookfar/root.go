@@ -30,7 +30,7 @@ func newRootCmd() *cobra.Command {
 		newVersionCmd(),
 		placeholder("serve", "Run the API, scheduler and workers"),
 		placeholder("migrate", "Run database migrations (up, down, status)"),
-		placeholder("config", "Work with lookfar.yaml (validate)"),
+		newConfigCmd(),
 		placeholder("run", "Run one job now"),
 		placeholder("mcp", "Run the MCP server over stdio"),
 		placeholder("token", "Manage API tokens (create, list, revoke)"),

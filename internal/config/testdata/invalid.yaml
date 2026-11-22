@@ -1,0 +1,10 @@
+severity_threshold: urgent
+domains:
+  - example.com
+  - https://bad.example.com
+  - Example.com
+brand_terms: [ok-term, "Bad Term"]
+delivery:
+  digest: { day: someday, hour: 24, timezone: Mars/Base }
+triage:
+  provider: anthropic

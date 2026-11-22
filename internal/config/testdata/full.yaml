@@ -1,0 +1,19 @@
+mission: "watch my stack"
+severity_threshold: critical
+stack:
+  manifests:
+    - path: ./package-lock.json
+  components:
+    - { name: redis, version: "7.2" }
+    - { name: stripe, kind: saas }
+domains: [example.com, shop.example.io]
+brand_terms: [example, examplepay]
+delivery:
+  email: { to: me@example.com, smtp_url: "smtps://user:pw@mail.example.com:465" }
+  webhook: { url: "https://hooks.example.com/x", secret: "${WH_SECRET}" }
+  digest: { day: friday, hour: 0, timezone: Asia/Kolkata }
+triage:
+  provider: openai
+  model: gpt-x
+  api_key: "${LLM_KEY}"
+  daily_budget: 5
