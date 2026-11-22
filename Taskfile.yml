@@ -55,6 +55,7 @@ tasks:
     deps: [web:install]
     cmds:
       - bun run build
+      - cmd: touch ../internal/webui/dist/.gitkeep
 
   build:
     desc: Build the web app and the lookfar binary into bin/
