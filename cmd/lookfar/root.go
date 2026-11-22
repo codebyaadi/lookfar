@@ -29,7 +29,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(
 		newVersionCmd(),
 		placeholder("serve", "Run the API, scheduler and workers"),
-		placeholder("migrate", "Run database migrations (up, down, status)"),
+		newMigrateCmd(),
 		newConfigCmd(),
 		placeholder("run", "Run one job now"),
 		placeholder("mcp", "Run the MCP server over stdio"),

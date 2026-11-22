@@ -23,6 +23,7 @@ tasks:
     desc: gofmt, golangci-lint and go test
     cmds:
       - task: go:fmt-check
+      - task: generate:check
       - go tool golangci-lint run ./...
       - go test ./...
 
@@ -69,9 +70,19 @@ tasks:
       - go tool air --build.cmd "go build -o ./tmp/lookfar{{exeExt}} ./cmd/lookfar" --build.entrypoint "./tmp/lookfar{{exeExt}}" --build.args_bin serve
 
   generate:
-    desc: Regenerate code (sqlc and the OpenAPI client land here in later tasks)
+    desc: Regenerate code (sqlc; the OpenAPI client lands here later)
     cmds:
-      - echo "nothing to generate yet"
+      - go tool sqlc generate
+
+  generate:check:
+    desc: Fail if generated code is out of date
+    cmds:
+      - go tool sqlc diff
+
+  test:integration:
+    desc: Run integration tests against Postgres in Docker (testcontainers)
+    cmds:
+      - go test -tags integration -count=1 ./...
 
   db:
     desc: Start Postgres in Docker and wait until it is healthy
