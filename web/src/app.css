@@ -1,1 +1,15 @@
 @import 'tailwindcss';
+/* wght + MONO axes, self-hosted by fontsource (no Google Fonts requests). */
+@import '@fontsource-variable/recursive/mono.css';
+
+@theme {
+  --font-sans: 'Recursive Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Recursive Variable', ui-monospace, monospace;
+}
+
+/* Recursive is one family: switch it to its monospace design for .font-mono. */
+@layer utilities {
+  .font-mono {
+    font-variation-settings: 'MONO' 1;
+  }
+}

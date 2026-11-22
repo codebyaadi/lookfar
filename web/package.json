@@ -34,7 +34,8 @@
     "vitest": "^5.1.1"
   },
   "dependencies": {
-    "@lucide/svelte": "^1.77.0",
-    "bits-ui": "^2.22.0"
+    "@fontsource-variable/recursive": "^5.3.0",
+    "bits-ui": "^2.22.0",
+    "phosphor-svelte": "^3.1.1"
   }
 }
