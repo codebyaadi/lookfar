@@ -1,7 +1,0 @@
-.git
-.env
-web/node_modules
-web/.svelte-kit
-bin
-tmp
-tools

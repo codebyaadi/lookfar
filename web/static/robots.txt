@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /app
-Disallow: /api/
-
-Sitemap: https://lookfar.codebyaadi.com/sitemap.xml
