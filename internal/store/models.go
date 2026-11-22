@@ -55,6 +55,8 @@ type Component struct {
 	Active       bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	Kind         string
+	Cpe          string
 }
 
 type Delivery struct {

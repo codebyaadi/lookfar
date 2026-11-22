@@ -9,6 +9,8 @@ stack:
     - { name: postgresql, version: "16.4" }
     - { name: redis, version: "7.2" }
     - { name: stripe, kind: saas }
+    # kind: package also needs ecosystem: npm, PyPI or Go; kind: image and server are also available.
+    # kind may be omitted for well-known server software (postgresql, redis, nginx, ...).
 domains: [example.com, example.io]
 brand_terms: [example, examplepay]
 delivery:

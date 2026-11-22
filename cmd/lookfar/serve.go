@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/codebyaadi/lookfar/internal/config"
+	"github.com/codebyaadi/lookfar/internal/jobs"
 	"github.com/codebyaadi/lookfar/internal/server"
 )
 
@@ -24,7 +25,8 @@ func newServeCmd() *cobra.Command {
 			if dbURL == "" {
 				return errors.New("database url is not set: pass --database-url or set DATABASE_URL")
 			}
-			if err := checkConfig(cfgPath); err != nil {
+			cfg, err := loadConfig(cfgPath)
+			if err != nil {
 				return err
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
@@ -34,6 +36,7 @@ func newServeCmd() *cobra.Command {
 				DatabaseURL: dbURL,
 				Version:     version,
 				Logger:      slog.Default(),
+				Stack:       jobs.StackFromConfig(cfg),
 			})
 		},
 	}
@@ -43,19 +46,20 @@ func newServeCmd() *cobra.Command {
 	return cmd
 }
 
-// checkConfig validates the config file so a bad file stops startup. A missing
-// file is only an error when the path was given explicitly; otherwise defaults apply.
-func checkConfig(flagPath string) error {
+// loadConfig loads and validates the config file so a bad file stops startup.
+// A missing file is only an error when the path was given explicitly;
+// otherwise it returns a nil config (defaults apply, stack sync is skipped).
+func loadConfig(flagPath string) (*config.Config, error) {
 	path := config.ResolvePath(flagPath, os.Getenv)
 	explicit := path != config.DefaultPath
 	cfg, err := config.Load(path, os.LookupEnv)
 	switch {
 	case errors.Is(err, fs.ErrNotExist) && !explicit:
 		slog.Warn("no config file found, running with defaults", "path", path)
-		return nil
+		return nil, nil
 	case err != nil:
-		return err
+		return nil, err
 	}
 	slog.Info("config loaded", "path", path, "domains", len(cfg.Domains), "components", len(cfg.Stack.Components))
-	return nil
+	return cfg, nil
 }

@@ -21,6 +21,8 @@ type Options struct {
 	DatabaseURL string
 	Version     string
 	Logger      *slog.Logger
+	// Stack feeds the stack_sync job; nil means no config file.
+	Stack jobs.StackSource
 	// Ready, if set, receives the bound address once the server is listening.
 	Ready func(addr string)
 }
@@ -40,7 +42,7 @@ func Run(ctx context.Context, o Options) error {
 	}
 	o.Logger.Info("migrations up to date", "applied", len(applied))
 
-	client, err := jobs.NewClient(pool, o.Logger, jobs.Options{Serve: true})
+	client, err := jobs.NewClient(pool, o.Logger, jobs.Options{Serve: true, Stack: o.Stack})
 	if err != nil {
 		return err
 	}

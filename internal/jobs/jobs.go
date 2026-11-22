@@ -33,7 +33,7 @@ type Job struct {
 
 // Registry lists every job that `lookfar run` knows about.
 func Registry() map[string]Job {
-	jobs := []Job{heartbeatJob}
+	jobs := []Job{heartbeatJob, stackSyncJob}
 	m := make(map[string]Job, len(jobs))
 	for _, j := range jobs {
 		m[j.Name] = j
@@ -52,9 +52,10 @@ func Names() []string {
 }
 
 // NewWorkers registers every worker. New jobs add themselves here.
-func NewWorkers(logger *slog.Logger) *river.Workers {
+func NewWorkers(logger *slog.Logger, pool *pgxpool.Pool, stackSource StackSource) *river.Workers {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &HeartbeatWorker{Logger: logger})
+	river.AddWorker(workers, &StackSyncWorker{Logger: logger, Pool: pool, Source: stackSource})
 	return workers
 }
 
@@ -66,7 +67,12 @@ func PeriodicJobs() []*river.PeriodicJob {
 			func() (river.JobArgs, *river.InsertOpts) { return HeartbeatArgs{}, nil },
 			&river.PeriodicJobOpts{RunOnStart: true},
 		),
-	}
+
+		river.NewPeriodicJob(
+			river.PeriodicInterval(6*time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return StackSyncArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: true},
+		)}
 }
 
 // Options configure NewClient.
@@ -74,6 +80,8 @@ type Options struct {
 	// Serve selects the long-running server setup: default queue and periodic
 	// jobs. Otherwise only the manual queue is worked (used by `lookfar run`).
 	Serve bool
+	// Stack supplies the declared stack for stack_sync. Nil means no config.
+	Stack StackSource
 }
 
 // NewClient builds a River client whose jobs are recorded in the runs table.
@@ -81,7 +89,7 @@ func NewClient(pool *pgxpool.Pool, logger *slog.Logger, opts Options) (*Client, 
 	logf := func(msg string, args ...any) { logger.Error(msg, args...) }
 	cfg := &river.Config{
 		Logger:  logger,
-		Workers: NewWorkers(logger),
+		Workers: NewWorkers(logger, pool, opts.Stack),
 	}
 	cfg.Plugins = []rivertype.Plugin{RunLogMiddleware(StoreRunLog{Q: store.New(pool)}, logf)}
 	if opts.Serve {

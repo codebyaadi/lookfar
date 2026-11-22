@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
@@ -76,7 +77,13 @@ func Load(path string, lookupEnv func(string) (string, bool)) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
-	return Parse(path, data, lookupEnv)
+	cfg, err := Parse(path, data, lookupEnv)
+	if cfg != nil {
+		if abs, aerr := filepath.Abs(path); aerr == nil {
+			cfg.Dir = filepath.Dir(abs)
+		}
+	}
+	return cfg, err
 }
 
 // Parse decodes, interpolates and validates config bytes. name is used in error messages.
@@ -110,6 +117,12 @@ func Parse(name string, data []byte, lookupEnv func(string) (string, bool)) (*Co
 		for _, fe := range verrs {
 			errs = append(errs, loc.errorAt(yamlPath(fe.Namespace()), message(fe)))
 		}
+		return nil, errs
+	}
+	for _, pe := range checkComponents(&cfg) {
+		errs = append(errs, loc.errorAt(pe.path, pe.msg))
+	}
+	if len(errs) > 0 {
 		return nil, errs
 	}
 	return &cfg, nil
@@ -216,6 +229,9 @@ func join(path, name string) string {
 
 func yamlName(f reflect.StructField) string {
 	name, _, _ := strings.Cut(f.Tag.Get("yaml"), ",")
+	if name == "-" {
+		return ""
+	}
 	return name
 }
 

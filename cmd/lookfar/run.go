@@ -11,13 +11,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/codebyaadi/lookfar/internal/config"
 	"github.com/codebyaadi/lookfar/internal/jobs"
 	"github.com/codebyaadi/lookfar/internal/postgres"
 	"github.com/codebyaadi/lookfar/internal/store"
 )
 
 func newRunCmd() *cobra.Command {
-	var dbURL string
+	var dbURL, cfgPath string
 	cmd := &cobra.Command{
 		Use:   "run <job> [args]",
 		Short: "Run one job now and wait for it (jobs: " + strings.Join(jobs.Names(), ", ") + ")",
@@ -47,7 +48,15 @@ func newRunCmd() *cobra.Command {
 				return fmt.Errorf("migrate: %w", err)
 			}
 
-			client, err := jobs.NewClient(pool, slog.Default(), jobs.Options{Serve: false})
+			opts := jobs.Options{Serve: false}
+			if job.Name == "stack_sync" {
+				cfg, err := loadConfig(cfgPath)
+				if err != nil {
+					return err
+				}
+				opts.Stack = jobs.StackFromConfig(cfg)
+			}
+			client, err := jobs.NewClient(pool, slog.Default(), opts)
 			if err != nil {
 				return err
 			}
@@ -70,5 +79,6 @@ func newRunCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&dbURL, "database-url", os.Getenv("DATABASE_URL"), "Postgres URL (default: $DATABASE_URL)")
+	cmd.Flags().StringVar(&cfgPath, "config", "", "path to lookfar.yaml for jobs that need it (default: $"+config.EnvVar+" or ./"+config.DefaultPath+")")
 	return cmd
 }

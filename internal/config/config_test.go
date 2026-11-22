@@ -94,6 +94,10 @@ func TestParseErrors(t *testing.T) {
 			[]string{"t.yaml:2:", "delivery.webhook.secret: environment variable S is not set"}},
 		{"email invalid", "delivery:\n  email: { to: nope, smtp_url: \"http://x\" }\n", nil,
 			[]string{"delivery.email.to", "delivery.email.smtp_url: must be an smtp"}},
+		{"kind required", "stack:\n  components:\n    - { name: stripe }\n", nil, []string{"t.yaml:3:", "stack.components[0].kind: \"stripe\" is not known server software"}},
+		{"package ecosystem", "stack:\n  components:\n    - { name: x, kind: package }\n", nil, []string{"stack.components[0].ecosystem: is required for kind package"}},
+		{"bad ecosystem", "stack:\n  components:\n    - { name: x, kind: package, ecosystem: rubygems }\n", nil, []string{"stack.components[0].ecosystem: must be one of"}},
+		{"unknown server", "stack:\n  components:\n    - { name: oracle-db, kind: server }\n", nil, []string{"stack.components[0].name: unknown server software"}},
 		{"component name", "stack:\n  components:\n    - version: \"1\"\n", nil, []string{"stack.components[0].name: is required"}},
 		{"component kind", "stack:\n  components:\n    - { name: a, kind: weird }\n", nil, []string{"stack.components[0].kind"}},
 		{"budget", "triage: { daily_budget: 0 }\n", nil, []string{"triage.daily_budget: must be at least 1"}},
@@ -166,5 +170,15 @@ func TestResolvePath(t *testing.T) {
 func TestLoadMissingFile(t *testing.T) {
 	if _, err := Load("testdata/nope.yaml", os.LookupEnv); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestKindInferredForCuratedServers(t *testing.T) {
+	cfg, err := Parse("t.yaml", []byte("stack:\n  components:\n    - { name: Redis, version: \"7.2\" }\n    - { name: x, kind: package, ecosystem: npm }\n"), envMap(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Stack.Components[0].Kind; got != "server" {
+		t.Errorf("kind = %q, want server", got)
 	}
 }

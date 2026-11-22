@@ -1,0 +1,13 @@
+# Sample config for trying stack sync against the fixtures in this folder.
+# Paths are relative to this file.
+stack:
+  manifests:
+    - path: go.mod
+    - path: package-lock.json
+    - path: Dockerfile
+  components:
+    - { name: postgresql, version: "16.4" }
+    - { name: Node.js, version: "22.1.0" }
+    - { name: redis, version: "7.2", kind: image }
+    - { name: stripe, kind: saas }
+    - { name: left-pad, version: "1.3.0", kind: package, ecosystem: npm }

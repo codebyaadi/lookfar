@@ -15,6 +15,9 @@ type Config struct {
 	BrandTerms        []string `yaml:"brand_terms" validate:"dive,brandterm"`
 	Delivery          Delivery `yaml:"delivery"`
 	Triage            Triage   `yaml:"triage"`
+
+	// Dir is the directory of the config file; relative manifest paths resolve against it.
+	Dir string `yaml:"-"`
 }
 
 // Stack declares the software the user runs.
@@ -33,6 +36,8 @@ type Component struct {
 	Name    string `yaml:"name" validate:"required"`
 	Version string `yaml:"version"`
 	Kind    string `yaml:"kind" validate:"omitempty,oneof=package server image saas"`
+	// Ecosystem is required for kind package: npm, PyPI or Go.
+	Ecosystem string `yaml:"ecosystem" validate:"omitempty,oneof=npm PyPI Go"`
 }
 
 // Delivery configures where findings are sent.

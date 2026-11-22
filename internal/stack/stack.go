@@ -34,6 +34,12 @@ type Component struct {
 	Version string
 	// Constraint is the declared version range when Version is unknown (package.json).
 	Constraint string
+	// CPE is the CPE 2.3 string for curated server software (empty otherwise).
+	CPE string
+	// Kind is package, server, image or saas.
+	Kind string
+	// Origin is "manifest" or "manual".
+	Origin string
 	// PURL is the package URL, the common component identity.
 	PURL string
 	// Manifest is the path the component came from, as passed to Extract.
@@ -226,6 +232,10 @@ func finalize(comps []Component, manifest string) []Component {
 	out := make([]Component, 0, len(comps))
 	for _, c := range comps {
 		c.Manifest = manifest
+		c.Origin = OriginManifest
+		if c.Kind == "" {
+			c.Kind = imageOrPackage(c)
+		}
 		key := c.PURL
 		if c.PURL == "" || c.Unresolved && c.Version == "" {
 			key = c.PURL + "|" + c.Constraint
@@ -255,4 +265,11 @@ func cleanPURL(s string) string {
 	}
 	p.Qualifiers = kept
 	return p.ToString()
+}
+
+func imageOrPackage(c Component) string {
+	if c.Ecosystem == "oci" {
+		return KindImage
+	}
+	return KindPackage
 }
