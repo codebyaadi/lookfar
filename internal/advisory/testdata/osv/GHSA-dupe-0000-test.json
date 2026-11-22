@@ -1,0 +1,1 @@
+{"id":"GHSA-dupe-0000-test","summary":"Synthetic second record for an existing CVE","aliases":["CVE-2024-24783"],"modified":"2026-01-01T00:00:00Z","database_specific":{"severity":"HIGH"},"affected":[{"package":{"name":"stdlib","ecosystem":"Go"},"versions":["1.22.0"]}],"references":[{"type":"WEB","url":"https://example.com/dupe"}]}

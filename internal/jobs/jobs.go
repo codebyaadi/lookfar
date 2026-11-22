@@ -33,7 +33,7 @@ type Job struct {
 
 // Registry lists every job that `lookfar run` knows about.
 func Registry() map[string]Job {
-	jobs := []Job{heartbeatJob, stackSyncJob, collectKEVJob}
+	jobs := []Job{heartbeatJob, stackSyncJob, collectKEVJob, collectOSVJob}
 	m := make(map[string]Job, len(jobs))
 	for _, j := range jobs {
 		m[j.Name] = j
@@ -55,7 +55,8 @@ func Names() []string {
 func NewWorkers(logger *slog.Logger, pool *pgxpool.Pool, opts Options) *river.Workers {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &HeartbeatWorker{Logger: logger})
-	river.AddWorker(workers, &StackSyncWorker{Logger: logger, Pool: pool, Source: opts.Stack})
+	river.AddWorker(workers, &StackSyncWorker{Logger: logger, Pool: pool, Source: opts.Stack, ChainOSV: opts.Serve})
+	river.AddWorker(workers, &CollectOSVWorker{Logger: logger, Collector: newOSVCollector(pool, opts)})
 	river.AddWorker(workers, &CollectKEVWorker{Logger: logger, Collector: newKEVCollector(pool, opts)})
 	return workers
 }
@@ -71,6 +72,11 @@ func PeriodicJobs() []*river.PeriodicJob {
 		river.NewPeriodicJob(
 			river.PeriodicInterval(6*time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return StackSyncArgs{}, nil },
+			&river.PeriodicJobOpts{RunOnStart: true},
+		),
+		river.NewPeriodicJob(
+			river.PeriodicInterval(12*time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return CollectOSVArgs{}, nil },
 			&river.PeriodicJobOpts{RunOnStart: true},
 		),
 		// KEV is conditional-GET cheap (a 304 when unchanged), so running at start is fine.
@@ -93,6 +99,8 @@ type Options struct {
 	Version string
 	// KEVURL overrides the CISA feed URL (tests only).
 	KEVURL string
+	// OSVURL overrides the OSV API base URL (tests only).
+	OSVURL string
 }
 
 // NewClient builds a River client whose jobs are recorded in the runs table.

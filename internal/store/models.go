@@ -59,6 +59,14 @@ type Component struct {
 	Cpe          string
 }
 
+type ComponentAdvisory struct {
+	ComponentID int64
+	AdvisoryID  string
+	Source      string
+	FirstSeen   time.Time
+	LastSeen    time.Time
+}
+
 type Delivery struct {
 	ID        int64
 	FindingID *int64

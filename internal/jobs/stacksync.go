@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
@@ -61,6 +62,8 @@ type StackSyncWorker struct {
 	Logger *slog.Logger
 	Pool   *pgxpool.Pool
 	Source StackSource
+	// ChainOSV enqueues collect_osv after a successful sync (serve only).
+	ChainOSV bool
 }
 
 // Work implements river.Worker.
@@ -92,6 +95,13 @@ func (w *StackSyncWorker) Work(ctx context.Context, _ *river.Job[StackSyncArgs])
 	}
 	w.Logger.Info("stack synced", "components", len(res.Components), "added", sum.Added,
 		"updated", sum.Updated, "deactivated", sum.Deactivated, "file_errors", len(sum.FileErrors))
+	if w.ChainOSV {
+		if c, cerr := river.ClientFromContextSafely[pgx.Tx](ctx); cerr == nil {
+			if _, ierr := c.Insert(ctx, CollectOSVArgs{}, osvChainOpts()); ierr != nil {
+				w.Logger.Warn("could not enqueue collect_osv", "error", ierr)
+			}
+		}
+	}
 	return nil
 }
 

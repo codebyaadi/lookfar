@@ -1,6 +1,7 @@
 package advisory
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -34,10 +35,19 @@ func NewFetcher(version string) *Fetcher {
 // errors. The caller must close the body of the returned response. A Retry-After
 // header (seconds) overrides the backoff delay.
 func (f *Fetcher) Get(ctx context.Context, url string, header http.Header) (*http.Response, error) {
+	return f.Do(ctx, http.MethodGet, url, header, nil)
+}
+
+// Do is Get for any method; body (may be nil) is re-sent on every retry.
+func (f *Fetcher) Do(ctx context.Context, method, url string, header http.Header, body []byte) (*http.Response, error) {
 	delay := f.Backoff
 	var lastErr error
 	for attempt := 0; ; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		var rdr io.Reader
+		if body != nil {
+			rdr = bytes.NewReader(body)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, url, rdr)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +64,7 @@ func (f *Fetcher) Get(ctx context.Context, url string, header http.Header) (*htt
 		case err != nil:
 			lastErr = err
 		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
-			lastErr = fmt.Errorf("GET %s: %s", url, resp.Status)
+			lastErr = fmt.Errorf("%s %s: %s", method, url, resp.Status)
 			if s, perr := strconv.Atoi(resp.Header.Get("Retry-After")); perr == nil && s >= 0 {
 				wait = time.Duration(s) * time.Second
 			}
