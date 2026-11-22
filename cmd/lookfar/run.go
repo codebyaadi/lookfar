@@ -48,7 +48,7 @@ func newRunCmd() *cobra.Command {
 				return fmt.Errorf("migrate: %w", err)
 			}
 
-			opts := jobs.Options{Serve: false}
+			opts := jobs.Options{Serve: false, Version: version}
 			if job.Name == "stack_sync" {
 				cfg, err := loadConfig(cfgPath)
 				if err != nil {

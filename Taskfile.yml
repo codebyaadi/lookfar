@@ -84,6 +84,15 @@ tasks:
     cmds:
       - go test -tags integration -count=1 -p 1 ./...
 
+  smoke:
+    desc: Opt-in live smoke test (hits cisa.gov, needs Docker Postgres); not part of check
+    env:
+      DATABASE_URL: postgres://lookfar:lookfar@localhost:5432/lookfar?sslmode=disable
+    cmds:
+      - task: db
+      - go run ./cmd/lookfar run collect_kev
+      - go run ./cmd/lookfar run collect_kev
+
   db:
     desc: Start Postgres in Docker and wait until it is healthy
     cmds:

@@ -7,6 +7,8 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSource = `-- name: CreateSource :one
@@ -43,6 +45,32 @@ func (q *Queries) CreateSource(ctx context.Context, arg CreateSourceParams) (Sou
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const finishSourceRun = `-- name: FinishSourceRun :exec
+UPDATE sources
+SET last_run_at = now(),
+    last_ok_at  = CASE WHEN $1::boolean THEN now() ELSE last_ok_at END,
+    last_error  = $2,
+    cursor      = COALESCE($3::jsonb, cursor)
+WHERE id = $4
+`
+
+type FinishSourceRunParams struct {
+	Ok     bool
+	Error  pgtype.Text
+	Cursor []byte
+	ID     int64
+}
+
+func (q *Queries) FinishSourceRun(ctx context.Context, arg FinishSourceRunParams) error {
+	_, err := q.db.Exec(ctx, finishSourceRun,
+		arg.Ok,
+		arg.Error,
+		arg.Cursor,
+		arg.ID,
+	)
+	return err
 }
 
 const getSource = `-- name: GetSource :one
@@ -100,4 +128,35 @@ func (q *Queries) ListSources(ctx context.Context) ([]Source, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertSource = `-- name: UpsertSource :one
+INSERT INTO sources (kind, name, enabled, schedule)
+VALUES ($1, $2, true, $3)
+ON CONFLICT (kind, name) DO UPDATE SET schedule = EXCLUDED.schedule
+RETURNING id, kind, name, enabled, schedule, cursor, last_run_at, last_ok_at, last_error, created_at
+`
+
+type UpsertSourceParams struct {
+	Kind     string
+	Name     string
+	Schedule string
+}
+
+func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Source, error) {
+	row := q.db.QueryRow(ctx, upsertSource, arg.Kind, arg.Name, arg.Schedule)
+	var i Source
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Name,
+		&i.Enabled,
+		&i.Schedule,
+		&i.Cursor,
+		&i.LastRunAt,
+		&i.LastOkAt,
+		&i.LastError,
+		&i.CreatedAt,
+	)
+	return i, err
 }

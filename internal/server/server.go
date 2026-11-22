@@ -42,7 +42,7 @@ func Run(ctx context.Context, o Options) error {
 	}
 	o.Logger.Info("migrations up to date", "applied", len(applied))
 
-	client, err := jobs.NewClient(pool, o.Logger, jobs.Options{Serve: true, Stack: o.Stack})
+	client, err := jobs.NewClient(pool, o.Logger, jobs.Options{Serve: true, Stack: o.Stack, Version: o.Version})
 	if err != nil {
 		return err
 	}
